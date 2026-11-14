@@ -6,6 +6,8 @@ The release workflow signs each build once its secrets are in place. Until then 
 
 The workflow signs `Tea Kadai.app` with your Developer ID, has Apple notarize it, staples the ticket, and zips it back up. It uses [rcodesign](https://gregoryszorc.com/docs/apple-codesign/main/), so it all runs on the Linux build machine.
 
+**Set up on 14 November 2026.** The builds use their own Developer ID Application certificate (ID `53A3ZXVPVC`), separate from the one on your Mac, so it can be revoked without touching anything else. It expires on **14 December 2027**: make a new one before then and update `MACOS_CERTIFICATE_P12` and `MACOS_CERTIFICATE_PASSWORD`. Notarization uses the App Store Connect team key "Tea Kadai CI" (`YDN265645T`, Developer access).
+
 1. Join the [Apple Developer Program](https://developer.apple.com/programs/) ($99 a year).
 2. Make a **Developer ID Application** certificate:
    1. On your Mac, open **Keychain Access → Certificate Assistant → Request a Certificate From a Certificate Authority**. Fill in your email, pick **Saved to disk**, and save the request.
