@@ -35,6 +35,12 @@ func _init() -> void:
 	_save("street_loop", _street_loop())
 	_save("rain_loop", _rain_loop())
 	_save("rush_loop", _rush_loop())
+	_save("clink", _clink())
+	_save("shutter", _shutter())
+	_save("temple_bell", _temple_bell())
+	_save("murmur_loop", _murmur_loop())
+	_save("pop", _pop())
+	_save("splash", _splash())
 	_save("music_day", _music(
 		[0, 2, 4, -1, 5, 4, 2, -1, 1, 2, 4, 2, 0, -1, -1, -1,
 		 2, 4, 5, 7, 5, 4, 2, -1, 4, 2, 1, 0, -1, -1, 0, -1], 0.6, 261.63, 0.0))
@@ -185,6 +191,77 @@ func _bell() -> PackedFloat32Array:
 		_tone(b, start, 0.7, 2350.0, 2350.0, 0.6, 6.0)
 		_tone(b, start, 0.7, 3520.0, 3520.0, 0.3, 8.0)
 		_tone(b, start, 0.7, 4700.0, 4700.0, 0.12, 10.0)
+	return b
+
+
+## Two steel tumblers touching: bright, short and a little uneven.
+func _clink() -> PackedFloat32Array:
+	var b := _buf(0.35)
+	for hit in [[0.0, 1.0], [0.045, 0.5]]:
+		_tone(b, hit[0], 0.3, 2630.0, 2610.0, hit[1], 22.0)
+		_tone(b, hit[0], 0.3, 3910.0, 3890.0, hit[1] * 0.6, 28.0)
+		_tone(b, hit[0], 0.3, 5470.0, 5470.0, hit[1] * 0.3, 35.0)
+		_noise(b, hit[0], 0.01, hit[1] * 0.4, 0.0, 0.1)
+	return b
+
+
+## A rolling shutter: fast metal rattles that slow down, then a thud.
+func _shutter() -> PackedFloat32Array:
+	var b := _buf(0.9)
+	var t := 0.0
+	var gap := 0.018
+	while t < 0.7:
+		var f := rng.randf_range(900.0, 1400.0)
+		_noise(b, t, 0.015, 0.5, 120.0, 0.3)
+		_tone(b, t, 0.03, f, f * 0.95, 0.15, 90.0)
+		t += gap
+		gap *= 1.03
+	_tone(b, 0.72, 0.18, 120.0, 70.0, 1.0, 22.0)
+	_noise(b, 0.72, 0.1, 0.6, 40.0, 0.8)
+	return b
+
+
+## A temple bell far down the street at dawn: low, long and shimmering.
+func _temple_bell() -> PackedFloat32Array:
+	var b := _buf(3.0)
+	for hit in [0.0, 1.2]:
+		for partial in [[1.0, 1.0], [2.0, 0.5], [2.76, 0.35], [5.4, 0.15], [8.9, 0.06]]:
+			var f: float = 392.0 * partial[0]
+			_tone(b, hit, 3.0 - hit, f, f * 0.998, partial[1], 1.4 + partial[0] * 0.3)
+	_smooth(b, 0.3)
+	return b
+
+
+## Many people talking at once: soft vowel-ish blips over a low murmur.
+func _murmur_loop() -> PackedFloat32Array:
+	var length := 4.0
+	var b := _buf(length)
+	var low := 0.0
+	for i in b.size():
+		low += (rng.randf_range(-1.0, 1.0) - low) * 0.05
+		b[i] = low * 0.6
+	for i in 140:
+		var at := rng.randf_range(0.0, length - 0.3)
+		var f := rng.randf_range(160.0, 320.0)
+		_tone(b, at, rng.randf_range(0.12, 0.28), f, f * rng.randf_range(0.85, 1.15), rng.randf_range(0.05, 0.12), 6.0)
+	_smooth(b, 0.6)
+	return b
+
+
+## A speech bubble popping up.
+func _pop() -> PackedFloat32Array:
+	var b := _buf(0.12)
+	_tone(b, 0.0, 0.1, 420.0, 900.0, 1.0, 30.0)
+	return b
+
+
+## Batter hitting hot oil.
+func _splash() -> PackedFloat32Array:
+	var b := _buf(0.6)
+	_noise(b, 0.0, 0.6, 1.0, 7.0, 0.2)
+	for i in 30:
+		var at := rng.randf_range(0.0, 0.4)
+		_tone(b, at, 0.02, 3000.0, 1800.0, 0.3, 150.0)
 	return b
 
 

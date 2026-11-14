@@ -138,7 +138,7 @@ func _wanted(service: Service, items: Array[String]) -> String:
 
 func _wait_for(screen_type) -> void:
 	for i in 600:
-		if is_instance_of(_main._screen, screen_type) and _main._fade.color.a < 0.05:
+		if is_instance_of(_main._screen, screen_type) and not _main.covered():
 			break
 		await process_frame
 	await _frames(4)

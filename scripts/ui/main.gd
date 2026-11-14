@@ -3,7 +3,8 @@ extends Control
 ## service and night summary, with fades between them. Saves at the start of
 ## every morning. Pass "-- --service" to skip straight to service.
 
-const FADE_SECONDS := 0.3
+const SHUTTER_DOWN := 0.35
+const SHUTTER_UP := 0.45
 
 var state: KadaiState
 var settings := Settings.load_saved()
@@ -12,7 +13,7 @@ var _screen: Control
 ## Screens live here; overlays sit above them so they get input first.
 var _stage := Control.new()
 var _overlays := CanvasLayer.new()
-var _fade := ColorRect.new()
+var _shutter := Shutter.new()
 
 
 func _ready() -> void:
@@ -27,13 +28,12 @@ func _ready() -> void:
 	add_child(_stage)
 	_overlays.layer = 5
 	add_child(_overlays)
-	var fade_layer := CanvasLayer.new()
-	fade_layer.layer = 10
-	add_child(fade_layer)
-	_fade.color = Color(Style.BG, 0.0)
-	_fade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	_fade.mouse_filter = MOUSE_FILTER_IGNORE
-	fade_layer.add_child(_fade)
+	var shutter_layer := CanvasLayer.new()
+	shutter_layer.layer = 10
+	add_child(shutter_layer)
+	_shutter.theme = theme
+	_shutter.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	shutter_layer.add_child(_shutter)
 
 	if "--service" in OS.get_cmdline_user_args():
 		state = KadaiState.new()
@@ -117,18 +117,27 @@ func _fit_window() -> void:
 	DisplayServer.window_set_position(usable.position + (usable.size - window_size) / 2)
 
 
-## Fades out, swaps to the next screen, and fades back in.
+## Whether the shutter is (partly) down, between screens.
+func covered() -> bool:
+	return _shutter.amount > 0.02
+
+
+## Pulls the shutter down, swaps to the next screen, and rolls it back up.
 func _swap(next: Control) -> void:
 	if _screen != null:
-		var out := create_tween()
-		out.tween_property(_fade, "color:a", 1.0, FADE_SECONDS)
-		await out.finished
+		sound.play("shutter")
+		var down := create_tween()
+		down.tween_property(_shutter, "amount", 1.0, SHUTTER_DOWN).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		await down.finished
 		_screen.queue_free()
 	_screen = next
 	_stage.add_child(next)
 	next.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var back := create_tween()
-	back.tween_property(_fade, "color:a", 0.0, FADE_SECONDS)
+	if _shutter.amount > 0.0:
+		var up := create_tween()
+		up.tween_interval(0.12)
+		up.tween_callback(sound.play.bind("shutter", 1.1))
+		up.tween_property(_shutter, "amount", 0.0, SHUTTER_UP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _show_title() -> void:
@@ -182,6 +191,8 @@ func _show_morning() -> void:
 		open_overlay(MenuOverlay.prices(state)).closed.connect(screen.refresh))
 	_swap(screen)
 	sound.set_scene("morning")
+	# A temple bell somewhere down the street as the day starts.
+	get_tree().create_timer(0.9).timeout.connect(sound.play.bind("temple_bell"))
 
 
 func _show_service() -> void:

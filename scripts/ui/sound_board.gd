@@ -15,21 +15,22 @@ const VOLUME := {
 	"grumble": -18.0, "crow": -20.0, "horn": -22.0, "bell": -22.0,
 	"pour_loop": -12.0, "sizzle_loop": -21.0, "street_loop": -19.0, "rain_loop": -16.0,
 	"music_day": -16.0, "music_night": -19.0, "rush_loop": -20.0,
+	"clink": -16.0, "shutter": -14.0, "temple_bell": -18.0, "murmur_loop": -22.0, "pop": -22.0, "splash": -16.0,
 }
 ## How fast each loop fades in and out, in full volume per second.
 const LOOP_FADE := {
 	"pour_loop": 12.0, "sizzle_loop": 3.0, "street_loop": 0.5, "rain_loop": 0.4,
-	"music_day": 0.35, "music_night": 0.35, "rush_loop": 0.5,
+	"music_day": 0.35, "music_night": 0.35, "rush_loop": 0.5, "murmur_loop": 0.6,
 }
 ## Which volume bus each sound plays on; anything not listed is an effect.
 const BUS := {
 	"music_day": "Music", "music_night": "Music", "rush_loop": "Music",
-	"street_loop": "Street", "rain_loop": "Street", "crow": "Street", "horn": "Street", "bell": "Street",
+	"street_loop": "Street", "rain_loop": "Street", "murmur_loop": "Street", "temple_bell": "Street", "crow": "Street", "horn": "Street", "bell": "Street",
 }
 ## Game events and the sound each one plays.
 const EVENTS := {
 	"tea_filling": "fill", "poured_perfect": "perfect", "poured_good": "good",
-	"poured_flat": "flat", "spilled": "spill", "vadai_drop": "lift", "vadai_golden": "golden",
+	"poured_flat": "flat", "spilled": "spill", "vadai_drop": "splash", "vadai_golden": "golden",
 	"vadai_lifted": "lift", "vadai_burnt": "burnt", "paid": "coin", "arrive": "arrive",
 	"grumble": "grumble", "streak": "golden", "friendship": "bell", "recipe": "golden", "treat": "perfect",
 	"golden_seen": "bell", "golden": "golden", "frenzy": "perfect",
@@ -125,6 +126,7 @@ func set_time_of_day(minutes: float) -> void:
 ## A percussion layer over the music during the rushes.
 func set_rush(on: bool) -> void:
 	set_loop("rush_loop", 1.0 if on else 0.0)
+	set_loop("murmur_loop", 1.0 if on else 0.0)
 
 
 ## The rush beat starts in step with the day music.

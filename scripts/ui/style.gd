@@ -83,6 +83,24 @@ static func make_theme() -> Theme:
 	var paper := _wood(PAPER)
 	paper.border_color = Color("c9b48c")
 	theme.set_stylebox("panel", "PaperPanel", paper)
+	# A slate chalkboard in a wooden frame, and a page of a school notebook.
+	var chalk := _wood(Color("27352d"))
+	chalk.border_color = Color("8a5a32")
+	chalk.set_border_width_all(4)
+	chalk.content_margin_left = 10
+	chalk.content_margin_right = 10
+	chalk.content_margin_top = 6
+	chalk.content_margin_bottom = 8
+	theme.set_type_variation("ChalkPanel", "PanelContainer")
+	theme.set_stylebox("panel", "ChalkPanel", chalk)
+	var notebook := _wood(Color("f7f1e1"))
+	notebook.border_color = Color("6d7f99")
+	notebook.set_corner_radius_all(1)
+	notebook.content_margin_left = 20
+	notebook.content_margin_top = 6
+	notebook.content_margin_bottom = 8
+	theme.set_type_variation("NotebookPanel", "PanelContainer")
+	theme.set_stylebox("panel", "NotebookPanel", notebook)
 
 	var hud := _wood(PANEL_DARK)
 	hud.set_corner_radius_all(0)
@@ -415,11 +433,12 @@ static func draw_portrait(canvas: CanvasItem, look: Dictionary, rect: Rect2, alp
 
 
 ## One weekly goal with a progress bar, for the morning and night screens.
-static func goal_row(goal: Dictionary) -> Control:
+static func goal_row(goal: Dictionary, ink: Color = TEXT) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	var done: bool = goal["done"]
-	var text := label(str(goal["text"]) + (" · done!" if done else ""), GOOD if done else TEXT)
+	var good := GOOD if ink == TEXT else Color("2f7a2a")
+	var text := label(str(goal["text"]) + (" · done!" if done else ""), good if done else ink)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
 	var bar := Control.new()
@@ -427,7 +446,9 @@ static func goal_row(goal: Dictionary) -> Control:
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var fraction := clampf(float(goal["value"]) / float(goal["target"]), 0.0, 1.0)
 	bar.draw.connect(func() -> void:
-		bar.draw_rect(Rect2(Vector2.ZERO, bar.size), PANEL_DARK)
-		bar.draw_rect(Rect2(Vector2.ZERO, Vector2(bar.size.x * fraction, bar.size.y)), GOOD if done else ACCENT))
+		bar.draw_rect(Rect2(Vector2.ZERO, bar.size), PANEL_DARK if ink == TEXT else Color("e3d6b8"))
+		bar.draw_rect(Rect2(Vector2.ZERO, Vector2(bar.size.x * fraction, bar.size.y)), GOOD if done else ACCENT)
+		if ink != TEXT:
+			bar.draw_rect(Rect2(Vector2.ZERO, bar.size), Color(ink, 0.5), false, 1.0))
 	row.add_child(bar)
 	return row

@@ -207,12 +207,16 @@ func _night() -> void:
 	# The tally counts up over a couple of seconds before the stars show.
 	await create_timer(3.5).timeout
 	_check(screen._stars_shown >= 1, "the night tally gives the day stars")
-	var buyable := 0
-	for id in Catalog.UPGRADE_ORDER:
-		if not _main.state.has_upgrade(id) and int(Catalog.UPGRADES[id]["level"]) <= _main.state.level():
-			buyable += 1
-	_check(screen._upgrades.size() == mini(buyable, NightScreen.UPGRADES_SHOWN),
-		"the night screen offers the upgrades for sale at this level")
+	_click(_find_button(screen, "Grow"))
+	await _frames(3)
+	var shop = _main._overlays.get_child(_main._overlays.get_child_count() - 1) if _main._overlays.get_child_count() > 0 else null
+	_check(shop is HelpersShop, "Grow opens the shop at night")
+	if shop is HelpersShop:
+		shop._show_tab("Kadai")
+		await _frames(2)
+		_check(_find_button(shop, "₹350") != null, "the kadai tab sells the bench at level 1")
+		shop.close()
+		await _frames(2)
 	_click(_find_button(screen, "Plan tomorrow"))
 	await _wait_for(MorningScreen)
 	_check(_main._screen is MorningScreen and _main.state.day == 2, "next morning is day 2")
@@ -303,7 +307,7 @@ func _find_button(node: Node, starts_with: String) -> Button:
 ## layout has settled before anything is clicked.
 func _wait_for(screen_type) -> void:
 	for i in 400:
-		if is_instance_of(_main._screen, screen_type) and _main._fade.color.a < 0.05:
+		if is_instance_of(_main._screen, screen_type) and not _main.covered():
 			break
 		await process_frame
 	await _frames(4)

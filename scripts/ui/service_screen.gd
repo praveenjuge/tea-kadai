@@ -34,6 +34,9 @@ var _paused := false
 var _shop: HelpersShop
 var _golden := GoldenGlass.new()
 var _was_raining := false
+## The street and stations shake a little on big moments.
+var _root: VBoxContainer
+var _shake := 0.0
 
 
 func _init(state: KadaiState, sound: SoundBoard) -> void:
@@ -44,6 +47,7 @@ func _init(state: KadaiState, sound: SoundBoard) -> void:
 
 func _ready() -> void:
 	var root := VBoxContainer.new()
+	_root = root
 	root.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	root.add_theme_constant_override("separation", 0)
 	add_child(root)
@@ -105,6 +109,10 @@ func _ready() -> void:
 	_service.phase_started.connect(_on_phase_started)
 	_service.golden_appeared.connect(func(spot: Vector2) -> void: _golden.appear(spot, Catalog.GOLDEN_LIFE))
 	_service.golden_gone.connect(_golden.vanish)
+	_service.helpers_earned.connect(func(amount: int) -> void:
+		_effects.float_text(_hud.money_point() - global_position + Vector2(-10, 18), "+%s" % Style.short_rupees(amount), Style.GOOD))
+	_service.said.connect(func(_seat: int, _text: String) -> void: _sound.play("pop"))
+	_service.asked.connect(func(_seat: int, _q: String, _o: Array) -> void: _sound.play("pop"))
 	_show_toast("%s. The kadai is open!" % Catalog.date_text(_state.day))
 
 
@@ -148,6 +156,8 @@ func _process(delta: float) -> void:
 	_tray_panel.refresh()
 	if _hint.visible and int(_state.today["served"]) > 0:
 		_hint.visible = false
+	_shake = maxf(0.0, _shake - delta * 12.0)
+	_root.position = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake if _shake > 0.0 else Vector2.ZERO
 	_toast_left = maxf(0.0, _toast_left - delta)
 	_toast.modulate.a = clampf(_toast_left / 0.5, 0.0, 1.0)
 
@@ -238,6 +248,7 @@ func _on_seat_clicked(seat: int) -> void:
 func _on_customer_left(seat: int, customer: Dictionary, outcome: String) -> void:
 	_street.on_left(seat, customer, outcome)
 	if outcome == "served":
+		_sound.play("clink", randf_range(0.95, 1.08))
 		var from := _street.position + _street.seat_point(seat)
 		var to := _hud.money_point() - global_position
 		_effects.fly_coins(from, to, 2 + int(customer["tip"]) / 2)
@@ -247,6 +258,15 @@ func _on_happened(event: String, _amount: int) -> void:
 	match event:
 		"poured_perfect":
 			_effects.sparkle(_tea_panel.glass_point() - global_position)
+		"streak":
+			_effects.confetti(_tea_panel.glass_point() - global_position, 16)
+		"vadai_drop":
+			_effects.splash(_fryer_panel.global_position - global_position + _fryer_panel.size * Vector2(0.5, 0.45))
+		"vadai_burnt":
+			_shake = 2.5
+		"golden", "frenzy":
+			_shake = 3.5
+			_effects.confetti(_street.position + _golden.position + _golden.size / 2.0, 40)
 		"recipe":
 			_effects.banner("New recipe learned!", Style.GOOD)
 		"treat":
