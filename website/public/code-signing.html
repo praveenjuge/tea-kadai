@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code signing policy · Tea Kadai</title>
+  <meta name="description" content="How Tea Kadai's Mac and Windows downloads are signed, who approves each release, and what the game does with your data.">
+  <meta name="theme-color" content="#2a1c13">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="lights" aria-hidden="true"></div>
+
+  <main class="policy">
+    <p><a href="/">← Tea Kadai</a></p>
+    <h1>Code signing policy</h1>
+
+    <section class="install">
+      <h2>Windows</h2>
+      <p>Free code signing provided by <a href="https://about.signpath.io/">SignPath.io</a>, certificate by <a href="https://signpath.org/">SignPath Foundation</a>.</p>
+      <p>Signing starts once SignPath Foundation approves the project. Until then, Windows downloads are unsigned.</p>
+    </section>
+
+    <section class="install">
+      <h2>Mac</h2>
+      <p>Mac downloads are signed with an Apple Developer ID and notarized by Apple once the developer account is set up. Until then, they're unsigned.</p>
+    </section>
+
+    <section class="install">
+      <h2>What gets signed</h2>
+      <p>Only builds made by the <a href="https://github.com/praveenjuge/tea-kadai/blob/main/.github/workflows/release.yml">release workflow</a> on GitHub Actions, straight from the <a href="https://github.com/praveenjuge/tea-kadai">public source code</a>. Every Windows release is approved by hand before it's signed.</p>
+    </section>
+
+    <section class="install">
+      <h2>Team</h2>
+      <p>Committers and reviewers: <a href="https://github.com/praveenjuge">Praveen Juge</a></p>
+      <p>Approvers: <a href="https://github.com/praveenjuge">Praveen Juge</a></p>
+    </section>
+
+    <section class="install">
+      <h2>Privacy</h2>
+      <p>This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.</p>
+      <p>Tea Kadai keeps its save file and settings on your computer and doesn't connect to the internet.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Made by <a href="https://praveenjuge.com">Praveen Juge</a> · <a href="https://github.com/praveenjuge/tea-kadai">Source on GitHub</a></p>
+  </footer>
+</body>
+</html>

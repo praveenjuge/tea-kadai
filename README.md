@@ -24,6 +24,8 @@ A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai str
 - **Windows**: run `TeaKadai-Windows.exe`. If SmartScreen appears, click **More info → Run anyway**.
 - **Linux**: extract `TeaKadai-Linux.tar.gz` and run `TeaKadai-Linux.x86_64`.
 
+Signing the Mac and Windows builds is being set up; [docs/SIGNING.md](docs/SIGNING.md) has the steps.
+
 Every push to `main` builds all three and publishes them as a new patch release. If pushes land close together, only the newest one is built and released.
 
 ## Run from source

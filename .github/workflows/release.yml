@@ -5,6 +5,11 @@ name: Build and release
 # older one is still building, the older run is cancelled: the latest wins.
 # Pull requests build and test, without releasing. Pushes that only change the
 # website (deployed by Cloudflare) don't make a new release.
+#
+# Releases are signed once the signing secrets are set up (docs/SIGNING.md):
+# the Mac app is signed and notarized with rcodesign, and the Windows exe is
+# signed by SignPath after a manual approval there. Without the secrets, the
+# builds ship unsigned.
 
 on:
   push:
@@ -20,6 +25,8 @@ concurrency:
 
 permissions:
   contents: write
+  # SignPath reads this run's details and downloads the unsigned exe.
+  actions: read
 
 env:
   GODOT_VERSION: "4.7.2"
@@ -28,7 +35,12 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Long enough to wait for the SignPath approval.
+    timeout-minutes: 90
+    env:
+      RELEASING: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      SIGN_MAC: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.MACOS_CERTIFICATE_P12 != '' }}
+      SIGN_WINDOWS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.SIGNPATH_API_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,6 +97,8 @@ jobs:
           sed -i "s/^config\/version=.*/config\/version=\"$NEXT\"/" project.godot
           sed -i "s/^application\/short_version=.*/application\/short_version=\"$NEXT\"/" export_presets.cfg
           sed -i "s/^application\/version=.*/application\/version=\"$GITHUB_RUN_NUMBER\"/" export_presets.cfg
+          sed -i "s/^application\/file_version=.*/application\/file_version=\"$NEXT.0\"/" export_presets.cfg
+          sed -i "s/^application\/product_version=.*/application\/product_version=\"$NEXT.0\"/" export_presets.cfg
           grep -E '^config/version' project.godot
 
       - name: Import the project
@@ -105,6 +119,67 @@ jobs:
           done
           ls -la build
 
+      - name: Sign and notarize the Mac app
+        if: env.SIGN_MAC == 'true'
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          name="apple-codesign-0.29.0-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 -o /tmp/rcodesign.tar.gz \
+            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign/0.29.0/$name.tar.gz"
+          echo "dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002  /tmp/rcodesign.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/rcodesign.tar.gz -C /tmp
+          rcodesign="/tmp/$name/rcodesign"
+
+          keys=$(mktemp -d)
+          trap 'rm -rf "$keys"' EXIT
+          echo "$MACOS_CERTIFICATE_P12" | base64 -d > "$keys/developer-id.p12"
+          printf '%s' "$MACOS_CERTIFICATE_PASSWORD" > "$keys/password"
+          printf '%s\n' "$APPLE_API_PRIVATE_KEY" > "$keys/api-key.p8"
+          "$rcodesign" encode-app-store-connect-api-key -o "$keys/api-key.json" \
+            "$APPLE_API_ISSUER_ID" "$APPLE_API_KEY_ID" "$keys/api-key.p8"
+
+          # Sign the app with the hardened runtime, have Apple notarize it,
+          # staple the ticket on, and zip it back up.
+          rm -rf build/mac && mkdir build/mac
+          unzip -q build/TeaKadai-macOS.zip -d build/mac
+          "$rcodesign" sign --p12-file "$keys/developer-id.p12" --p12-password-file "$keys/password" \
+            --code-signature-flags runtime "build/mac/Tea Kadai.app"
+          "$rcodesign" notary-submit --api-key-file "$keys/api-key.json" --staple "build/mac/Tea Kadai.app"
+          rm build/TeaKadai-macOS.zip
+          (cd build/mac && zip -qry ../TeaKadai-macOS.zip "Tea Kadai.app")
+
+      - name: Upload the Windows exe for signing
+        id: unsigned-windows
+        if: env.SIGN_WINDOWS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows
+          path: build/TeaKadai-Windows.exe
+          retention-days: 1
+
+      - name: Sign the Windows exe with SignPath
+        if: env.SIGN_WINDOWS == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: tea-kadai
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned-windows.outputs.artifact-id }}
+          # Each release waits here until it's approved in SignPath.
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: build/signed-windows
+
+      - name: Use the signed Windows exe
+        if: env.SIGN_WINDOWS == 'true'
+        run: mv -f build/signed-windows/TeaKadai-Windows.exe build/TeaKadai-Windows.exe
+
       - name: Keep the builds with this run
         uses: actions/upload-artifact@v4
         with:
@@ -116,7 +191,7 @@ jobs:
           retention-days: 7
 
       - name: Publish the release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: env.RELEASING == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           NEXT: ${{ steps.version.outputs.next }}
@@ -147,7 +222,7 @@ jobs:
           gh release edit "$tag" --draft=false --latest
 
       - name: Keep only the newest releases
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: env.RELEASING == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
