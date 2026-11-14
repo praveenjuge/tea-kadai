@@ -2,7 +2,7 @@
 
 The App Store build is made on your Mac (Apple's packaging needs Xcode), from the `macOS App Store` export preset, by `tools/build_app_store.sh`. It differs from the GitHub build in three ways:
 
-- It runs in Apple's sandbox. Its save lives in the app's container, and share cards save to **Pictures**, since sandboxed apps can't write to the Desktop.
+- It runs in Apple's sandbox. Its save lives in the app's container, and share cards save to **Downloads**, since sandboxed apps can't write to the Desktop. (Godot's Pictures option writes an entitlement key Apple rejects, so Downloads it is.)
 - It never updates itself or touches the network; the App Store updates it. The feedback button still works, because it only opens the browser.
 - It's signed for the App Store and packaged as a `.pkg`.
 

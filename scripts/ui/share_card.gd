@@ -64,14 +64,14 @@ static func _story_line(state: KadaiState) -> String:
 	return "Another day of tea on a busy Chennai street."
 
 
-## Where cards are saved: the Desktop, or Pictures in the Mac App Store
+## Where cards are saved: the Desktop, or Downloads in the Mac App Store
 ## build, whose sandbox can't write to the Desktop.
 static func folder_name() -> String:
-	return "Pictures" if OS.has_feature("app_store") else "Desktop"
+	return "Downloads" if OS.has_feature("app_store") else "Desktop"
 
 
 ## Renders the card off-screen and saves it as a PNG in "folder", by default
-## the Desktop (Pictures in the App Store build, or the game's own folder if
+## the Desktop (Downloads in the App Store build, or the game's own folder if
 ## neither exists). Returns the saved path.
 static func save_png(host: Node, card_data: Dictionary, file_name: String, folder: String = "") -> String:
 	var viewport := SubViewport.new()
@@ -87,7 +87,7 @@ static func save_png(host: Node, card_data: Dictionary, file_name: String, folde
 	var image := viewport.get_texture().get_image()
 	viewport.queue_free()
 	if folder == "":
-		folder = OS.get_system_dir(OS.SYSTEM_DIR_PICTURES if OS.has_feature("app_store") else OS.SYSTEM_DIR_DESKTOP)
+		folder = OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS if OS.has_feature("app_store") else OS.SYSTEM_DIR_DESKTOP)
 	if folder == "" or not DirAccess.dir_exists_absolute(folder):
 		folder = OS.get_user_data_dir()
 	var path := folder.path_join(file_name)
