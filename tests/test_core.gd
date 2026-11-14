@@ -27,6 +27,7 @@ func _init() -> void:
 	_test_bajji()
 	_test_first_day_is_stocked()
 	_test_clicker()
+	_test_chennai()
 	_test_bot_plays_a_full_day()
 	_test_two_weeks()
 	if _failures == 0:
@@ -416,6 +417,26 @@ func _test_clicker() -> void:
 	_check(state.money == KadaiState.new().money, "a new branch starts with starting money")
 	_check(is_equal_approx(state.branch_multiplier(), 1.0 + Catalog.BRANCH_BONUS), "a branch gives a lasting bonus")
 	_check(KadaiState.from_dict(JSON.parse_string(JSON.stringify(state.to_dict()))).branches == 1, "branches survive a save")
+
+
+func _test_chennai() -> void:
+	_check(Catalog.headline(73).contains("Pongal"), "Pongal day has its own headline")
+	_check(Catalog.headline(5).contains("releases today"), "Friday's paper has the film release")
+	_check(Chennai.film(4) != Chennai.film(5) and Chennai.film(5) == Chennai.film(11), "a new film every Friday")
+	_check(Chennai.kolam_size(73) > Chennai.kolam_size(2) and Chennai.kolam_size(50) > 1.0, "kolams are bigger on festivals and in Margazhi")
+	_check(Chennai.is_match_day(6) and not Chennai.is_match_day(3), "weekends are match days")
+	# On a match day the radio plays cricket, and a six calms everyone down.
+	var state := KadaiState.new()
+	state.day = 6
+	var service := Service.new(state, 21)
+	service.seats[0] = _customer({"tea": 1}, 5.0)
+	var said: Array = []
+	service.message.connect(func(text: String) -> void: said.append(text))
+	for i in 6000:
+		service.radio.update(0.1)
+	_check(said.any(func(text: String) -> bool: return text.begins_with("Radio commentary")), "the radio plays cricket on match days")
+	_check(said.any(func(text: String) -> bool: return text.contains("SIX")) == (float(service.seats[0]["patience"]) > 5.0),
+		"a six gives waiting customers patience back")
 
 
 func _test_bot_plays_a_full_day() -> void:

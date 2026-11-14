@@ -179,7 +179,12 @@ func _draw() -> void:
 	_scenery.draw_buildings()
 	_scenery.draw_ground()
 	_scenery.draw_shadows()
+	var day := _service.state.day
+	ChennaiBits.draw_poster_wall(self, day)
+	ChennaiBits.draw_auto_stand(self, _scenery)
+	ChennaiBits.draw_cutout(self, day, _time)
 	_draw_stall()
+	ChennaiBits.draw_festival(self, day, _time)
 	_draw_tree(Vector2(-0.6, 3.6))
 	_draw_cow(Vector2(9.4, 3.9))
 	for seat in _service.seats.size():

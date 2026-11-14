@@ -177,4 +177,11 @@ func _say_chatter(service: Service) -> void:
 	elif minute > 1020.0 and _rng.randf() < 0.5:
 		pool = "evening"
 	var lines: Array = Catalog.CHATTER[pool]
-	_view.say(waiting[_rng.randi() % waiting.size()], lines[_rng.randi() % lines.size()])
+	var seat := waiting[_rng.randi() % waiting.size()]
+	if Chennai.is_release_day(service.state.day) and _rng.randf() < 0.4:
+		lines = Chennai.FRIDAY_LINES
+	elif service.seats[seat]["type"] == "auto_driver" and _rng.randf() < 0.4:
+		lines = Chennai.AUTO_LINES
+	elif _rng.randf() < 0.45:
+		lines = Chennai.TANGLISH
+	_view.say(seat, lines[_rng.randi() % lines.size()])

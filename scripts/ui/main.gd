@@ -209,6 +209,8 @@ func _on_service_menu(choice: String) -> void:
 			open_overlay(MenuOverlay.settings_panel(settings))
 		"help":
 			open_overlay(MenuOverlay.how_to_play())
+		"glossary":
+			open_overlay(MenuOverlay.glossary())
 		"quit":
 			_show_title()
 

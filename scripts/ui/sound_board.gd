@@ -16,6 +16,7 @@ const VOLUME := {
 	"pour_loop": -12.0, "sizzle_loop": -21.0, "street_loop": -19.0, "rain_loop": -16.0,
 	"music_day": -16.0, "music_night": -19.0, "rush_loop": -20.0,
 	"clink": -16.0, "shutter": -14.0, "temple_bell": -18.0, "murmur_loop": -22.0, "pop": -22.0, "splash": -16.0,
+	"cheer": -15.0, "radio_tune": -20.0,
 }
 ## How fast each loop fades in and out, in full volume per second.
 const LOOP_FADE := {
@@ -33,7 +34,7 @@ const EVENTS := {
 	"poured_flat": "flat", "spilled": "spill", "vadai_drop": "splash", "vadai_golden": "golden",
 	"vadai_lifted": "lift", "vadai_burnt": "burnt", "paid": "coin", "arrive": "arrive",
 	"grumble": "grumble", "streak": "golden", "friendship": "bell", "recipe": "golden", "treat": "perfect",
-	"golden_seen": "bell", "golden": "golden", "frenzy": "perfect",
+	"golden_seen": "bell", "golden": "golden", "frenzy": "perfect", "radio": "radio_tune", "cheer": "cheer",
 }
 const STREET_SOUNDS: Array[String] = ["crow", "crow", "horn", "bell"]
 const STREET_GAP := Vector2(6.0, 16.0)

@@ -381,7 +381,8 @@ static func rain_for_day(day: int) -> Vector2:
 
 
 static func headline(day: int) -> String:
-	return HEADLINES[(day - 1) % HEADLINES.size()]
+	var special := Chennai.headline(day)
+	return special if special != "" else HEADLINES[(day - 1) % HEADLINES.size()]
 
 
 ## What one unit of a menu item costs you in stock, in rupees.

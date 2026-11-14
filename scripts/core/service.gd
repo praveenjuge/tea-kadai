@@ -53,6 +53,7 @@ var streak := 0
 var rain := Vector2.ZERO
 ## Today's regulars who are around this week of the story.
 var regulars: Array[RegularVisit] = []
+var radio: RadioShow
 ## Tips are doubled for everyone (a regular is celebrating).
 var treat := false
 var _ambient := false
@@ -92,6 +93,7 @@ func _init(kadai: KadaiState, seed_value: int = -1, ambient: bool = false) -> vo
 	tea.poured.connect(_on_tea_poured)
 	_golden_timer = _next_golden_gap()
 	if not ambient:
+		radio = RadioShow.new(self)
 		for id in Story.REGULAR_ORDER:
 			if state.day >= Story.first_day(id):
 				regulars.append(RegularVisit.new(self, id))
@@ -115,6 +117,7 @@ func update(delta: float) -> void:
 		for visit in regulars:
 			visit.update(delta)
 		_update_helpers(delta)
+		radio.update(delta)
 		_update_staff(delta)
 		_update_golden(delta)
 	if clock.is_over():

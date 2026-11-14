@@ -142,6 +142,7 @@ func _build_pause_menu() -> Control:
 	box.add_child(Style.button("Back to the counter", _toggle_pause))
 	box.add_child(Style.button("Settings", func() -> void: menu_requested.emit("settings"), true))
 	box.add_child(Style.button("How to play", func() -> void: menu_requested.emit("help"), true))
+	box.add_child(Style.button("Tamil words", func() -> void: menu_requested.emit("glossary"), true))
 	box.add_child(Style.button("Quit to title", func() -> void: menu_requested.emit("quit"), true))
 	box.add_child(Style.paragraph("Quitting replays today from the morning.", 180.0, Style.MUTED))
 	return cover

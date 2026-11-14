@@ -41,6 +41,8 @@ func _init() -> void:
 	_save("murmur_loop", _murmur_loop())
 	_save("pop", _pop())
 	_save("splash", _splash())
+	_save("cheer", _cheer())
+	_save("radio_tune", _radio_tune())
 	_save("music_day", _music(
 		[0, 2, 4, -1, 5, 4, 2, -1, 1, 2, 4, 2, 0, -1, -1, -1,
 		 2, 4, 5, 7, 5, 4, 2, -1, 4, 2, 1, 0, -1, -1, 0, -1], 0.6, 261.63, 0.0))
@@ -262,6 +264,36 @@ func _splash() -> PackedFloat32Array:
 	for i in 30:
 		var at := rng.randf_range(0.0, 0.4)
 		_tone(b, at, 0.02, 3000.0, 1800.0, 0.3, 150.0)
+	return b
+
+
+## A street crowd cheering at a big shot: a swell of voices and claps.
+func _cheer() -> PackedFloat32Array:
+	var length := 1.8
+	var b := _buf(length)
+	var low := 0.0
+	for i in b.size():
+		var t := float(i) / RATE
+		var swell := minf(1.0, t * 6.0) * exp(-maxf(0.0, t - 0.4) * 2.2)
+		low += (rng.randf_range(-1.0, 1.0) - low) * 0.25
+		b[i] = low * swell * 0.7
+	for i in 70:
+		var at := rng.randf_range(0.0, 1.2)
+		var f := rng.randf_range(300.0, 700.0)
+		_tone(b, at, 0.3, f, f * rng.randf_range(1.05, 1.3), rng.randf_range(0.05, 0.15), 5.0)
+	for i in 40:
+		_noise(b, rng.randf_range(0.05, 1.3), 0.02, 0.5, 120.0, 0.0)
+	return b
+
+
+## A little tinny jingle, like a radio station ident.
+func _radio_tune() -> PackedFloat32Array:
+	var b := _buf(1.2)
+	var notes := [0, 2, 4, 7, 4, 9]
+	for i in notes.size():
+		var freq := 523.25 * pow(2.0, SCALE[notes[i] % SCALE.size()] / 12.0) if notes[i] < SCALE.size() else 523.25
+		_tone(b, i * 0.12, 0.3, freq, freq, 0.6, 9.0, true)
+	_noise(b, 0.0, 1.2, 0.04, 0.0, 0.0)
 	return b
 
 

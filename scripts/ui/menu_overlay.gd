@@ -121,7 +121,33 @@ static func how_to_play() -> MenuOverlay:
 		row.add_child(text)
 		overlay.add(row)
 	overlay.add(Style.label("Space tea · G next drink · F fry · B next fry · 1 to 5 serve · P pause · M sound", Style.MUTED))
-	overlay.add_buttons([Style.button("Got it", overlay.close)])
+	overlay.add_buttons([
+		Style.button("Tamil words", func() -> void:
+			var words := glossary()
+			words.theme = overlay.theme
+			overlay.get_parent().add_child(words)
+			overlay.close(), true),
+		Style.button("Got it", overlay.close),
+	])
+	return overlay
+
+
+## Tamil and Tanglish words heard at the kadai.
+static func glossary() -> MenuOverlay:
+	var overlay := MenuOverlay.new("Words from the kadai", 420.0)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size.y = 220
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 4)
+	for entry in Chennai.GLOSSARY:
+		grid.add_child(Style.label(entry[0], Style.ACCENT))
+		grid.add_child(Style.paragraph(entry[1], 260.0))
+	scroll.add_child(grid)
+	overlay.add(scroll)
+	overlay.add_buttons([Style.button("Nandri!", overlay.close)])
 	return overlay
 
 

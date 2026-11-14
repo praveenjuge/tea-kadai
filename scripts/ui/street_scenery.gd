@@ -171,7 +171,7 @@ func draw_ground() -> void:
 	for crack in [Vector2(-2.3, 2.1), Vector2(8.6, 3.4), Vector2(11.2, 1.2)]:
 		var a := _view._iso(crack)
 		_view.draw_polyline(PackedVector2Array([a, a + Vector2(4, 2), a + Vector2(6, 1), a + Vector2(10, 4)]), PAVEMENT_LINE.darkened(0.15), 1.0)
-	_draw_kolam(Vector2(4.0, 2.6))
+	ChennaiBits.draw_kolam(_view, Vector2(4.0, 2.6), _view.service().state.day)
 	# Kerb, drain with grates, road, and lane markings.
 	_view._quad(Vector2(-30, 5.4), Vector2(30, 5.65), Color("8c8273"))
 	_view._quad(Vector2(-30, 5.65), Vector2(30, 5.8), Color("3a3634"))
@@ -185,32 +185,6 @@ func draw_ground() -> void:
 	var manhole := _view._iso(Vector2(3.0, 7.9))
 	_view.draw_colored_polygon(_ellipse(manhole, 9.0, 4.5), Color("3a383d"))
 	_view.draw_arc(manhole, 6.0, 0.0, TAU, 12, Color("5a585d"), 1.0)
-
-
-## A white dot-and-loop kolam drawn on the ground in front of the kadai.
-func _draw_kolam(center: Vector2) -> void:
-	var white := Color(1, 1, 1, 0.85)
-	for ix in range(-2, 3):
-		for iy in range(-2, 3):
-			if absi(ix) + absi(iy) > 2:
-				continue
-			var at := _view._iso(center + Vector2(ix * 0.3, iy * 0.3))
-			_view.draw_rect(Rect2(at, Vector2(1, 1)), white)
-	# Coloured petals in two rings, with a white outline like rice flour.
-	var colors := [Color("e0604e"), Color("ffca3a"), Color("8ac926"), Color("c77dff")]
-	for ring_i in 2:
-		var r := 0.45 + ring_i * 0.35
-		var petals := 8 + ring_i * 4
-		for i in petals:
-			var a := TAU * i / petals + ring_i * 0.2
-			var at := _view._iso(center + Vector2(cos(a), sin(a)) * r)
-			_view.draw_colored_polygon(_ellipse(at, 3.0, 1.6), colors[(i + ring_i) % colors.size()])
-	var outline := PackedVector2Array()
-	for i in 25:
-		var a := TAU * i / 24.0
-		var wobble := 1.05 + 0.12 * sin(a * 6.0)
-		outline.append(_view._iso(center + Vector2(cos(a), sin(a)) * wobble))
-	_view.draw_polyline(outline, white, 1.0)
 
 
 # --- Light and shadow -------------------------------------------------------
