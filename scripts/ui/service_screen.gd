@@ -31,6 +31,8 @@ var _toast_left := 0.0
 var _hint: Label
 var _pause_menu: Control
 var _paused := false
+var _shop: HelpersShop
+var _golden := GoldenGlass.new()
 var _was_raining := false
 
 
@@ -48,6 +50,7 @@ func _ready() -> void:
 
 	_hud = HudBar.new(_service)
 	_hud.menu_pressed.connect(_toggle_pause)
+	_hud.shop_pressed.connect(_open_shop)
 	root.add_child(_hud)
 	_street = StreetView.new(_service)
 	_street.size_flags_vertical = SIZE_EXPAND_FILL
@@ -73,6 +76,8 @@ func _ready() -> void:
 	_toast.offset_bottom = -4
 	_toast.mouse_filter = MOUSE_FILTER_IGNORE
 	_street.add_child(_toast)
+	_golden.clicked.connect(_on_golden_clicked)
+	_street.add_child(_golden)
 
 	var stations := CounterTop.new()
 	stations.custom_minimum_size.y = 124
@@ -98,6 +103,8 @@ func _ready() -> void:
 	_service.happened.connect(_sound.on_event)
 	_service.happened.connect(_on_happened)
 	_service.phase_started.connect(_on_phase_started)
+	_service.golden_appeared.connect(func(spot: Vector2) -> void: _golden.appear(spot, Catalog.GOLDEN_LIFE))
+	_service.golden_gone.connect(_golden.vanish)
 	_show_toast("%s. The kadai is open!" % Catalog.date_text(_state.day))
 
 
@@ -187,8 +194,35 @@ static func _next_of(items: Array[String], current: String) -> String:
 	return items[(items.find(current) + 1) % items.size()]
 
 
+## The helpers shop, with the day paused while it's open.
+func _open_shop() -> void:
+	if _service.closed or _paused:
+		return
+	_paused = true
+	_service.tea_release()
+	_shop = HelpersShop.new(_state)
+	_shop.bought.connect(func(_kind: String) -> void: _sound.play("coin"))
+	_shop.closed.connect(func() -> void:
+		_paused = false
+		_shop = null)
+	add_child(_shop)
+
+
+func _on_golden_clicked() -> void:
+	if _paused:
+		return
+	var at := _street.position + _golden.position + _golden.size / 2.0
+	match _service.claim_golden():
+		"bonus":
+			_effects.sparkle(at)
+			_effects.fly_coins(at, _hud.money_point() - global_position, 8)
+		"frenzy":
+			_effects.sparkle(at)
+			_effects.banner("Frenzy! Helpers earn %dx!" % Catalog.FRENZY_TIMES, Style.WARN)
+
+
 func _toggle_pause() -> void:
-	if _service.closed:
+	if _service.closed or _shop != null:
 		return
 	_paused = not _paused
 	_pause_menu.visible = _paused

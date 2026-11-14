@@ -26,6 +26,7 @@ func _init() -> void:
 	_test_week_goals()
 	_test_bajji()
 	_test_first_day_is_stocked()
+	_test_clicker()
 	_test_bot_plays_a_full_day()
 	_test_two_weeks()
 	if _failures == 0:
@@ -358,6 +359,65 @@ func _test_first_day_is_stocked() -> void:
 
 ## A simple bot plays a whole day. Checks that the loop runs to the end and a
 ## careful player can make money.
+func _test_clicker() -> void:
+	var state := KadaiState.new()
+	state.money = 100000
+	_check(state.helper_cost("flask_boy") == 150, "the first flask boy costs 150")
+	state.buy_helper("flask_boy")
+	_check(state.helper_cost("flask_boy") == 173, "each flask boy costs a bit more than the last")
+	for i in 9:
+		state.buy_helper("flask_boy")
+	_check(is_equal_approx(state.income_per_second(), 3.0), "ten flask boys earn 3 a second")
+	var service := Service.new(state, 3)
+	var money := state.money
+	for i in 100:
+		service._update_helpers(0.1)
+	_check(state.money - money == 30 and int(state.today["helpers"]) == 30, "helpers earn through the day")
+	service.frenzy = 5.0
+	money = state.money
+	for i in 10:
+		service._update_helpers(0.1)
+	_check(state.money - money == 21, "a frenzy makes helpers earn %dx" % Catalog.FRENZY_TIMES)
+	# The golden glass shows up, then gives a bonus or a frenzy when clicked.
+	service._golden_timer = 0.0
+	service.clock.elapsed = 10.0
+	service._update_golden(0.1)
+	_check(service.golden_left > 0.0, "a golden glass appears")
+	money = state.money
+	service.frenzy = 0.0
+	var got := service.claim_golden()
+	_check(got == "frenzy" and service.frenzy > 0.0 or got == "bonus" and state.money > money, "clicking the golden glass pays out")
+	_check(service.claim_golden() == "", "a golden glass can only be clicked once")
+	# Staff: the chai boy hands over complete orders on his own.
+	_check(not state.can_hire("chai_boy"), "staff need the right level")
+	state.reputation = Catalog.LEVEL_POINTS[3]
+	_check(state.hire("chai_boy") and state.has_staff("chai_boy"), "the chai boy can be hired")
+	var staffed := Service.new(state, 4)
+	staffed.seats[0] = _customer({"tea": 1})
+	staffed.ready["tea"].append(0.9)
+	staffed._update_staff(0.1)
+	_check(staffed.seats[0] == null, "the chai boy serves a ready order")
+	# Boosts double what they boost.
+	var before := state.helper_income("flask_boy")
+	_check(state.buy_boost("steel_flasks"), "the steel flasks boost can be bought")
+	_check(is_equal_approx(state.helper_income("flask_boy"), before * 2.0), "a boost doubles its helper")
+	# Away earnings are half the rate, capped.
+	_check(state.away_earnings(3600.0) == floori(state.income_per_second() * 3600.0 * Catalog.AWAY_RATE), "away earnings are half rate")
+	_check(state.away_earnings(1e9) == state.away_earnings(Catalog.AWAY_MAX_HOURS * 3600.0), "away earnings are capped")
+	# Everything survives a save.
+	var copy := KadaiState.from_dict(JSON.parse_string(JSON.stringify(state.to_dict())))
+	_check(copy.helper_count("flask_boy") == 10 and copy.has_staff("chai_boy") and copy.has_boost("steel_flasks"), "helpers, staff and boosts survive a save")
+	# A new branch starts fresh with a permanent bonus.
+	_check(not state.can_open_branch(), "a branch needs enough earned first")
+	state.branch_earned = Catalog.BRANCH_NEEDS
+	var day := state.day
+	_check(state.open_branch(), "a branch can be opened")
+	_check(state.branches == 1 and state.helpers.is_empty() and state.staff.is_empty() and state.day == day, "a new branch starts fresh on the same day")
+	_check(state.money == KadaiState.new().money, "a new branch starts with starting money")
+	_check(is_equal_approx(state.branch_multiplier(), 1.0 + Catalog.BRANCH_BONUS), "a branch gives a lasting bonus")
+	_check(KadaiState.from_dict(JSON.parse_string(JSON.stringify(state.to_dict()))).branches == 1, "branches survive a save")
+
+
 func _test_bot_plays_a_full_day() -> void:
 	var state := KadaiState.new()
 	state.buy("batter")

@@ -223,8 +223,44 @@ static func outlined(text: String, color: Color = TEXT, size: int = FONT_SIZE) -
 	return node
 
 
+## Rupees grouped the Indian way: ₹1,00,000.
 static func rupees(amount: int) -> String:
-	return ("-₹%d" % -amount) if amount < 0 else ("₹%d" % amount)
+	return ("-₹" if amount < 0 else "₹") + _grouped(absi(amount))
+
+
+## Rupees kept short for big amounts: ₹45,000, ₹2.5 lakh, ₹1.2 crore.
+static func short_rupees(amount: float) -> String:
+	var whole := absf(amount)
+	var sign := "-" if amount < 0 else ""
+	if whole >= 10000000.0:
+		return "%s₹%s crore" % [sign, _trim(whole / 10000000.0)]
+	if whole >= 100000.0:
+		return "%s₹%s lakh" % [sign, _trim(whole / 100000.0)]
+	return sign + "₹" + _grouped(floori(whole))
+
+
+## Income per second, with a decimal while it's small.
+static func per_second(amount: float) -> String:
+	if amount < 10.0:
+		return "₹%.1f/s" % amount
+	return short_rupees(amount) + "/s"
+
+
+static func _grouped(amount: int) -> String:
+	var digits := str(amount)
+	if digits.length() <= 3:
+		return digits
+	var out := digits.substr(digits.length() - 3)
+	var rest := digits.substr(0, digits.length() - 3)
+	while rest.length() > 2:
+		out = rest.substr(rest.length() - 2) + "," + out
+		rest = rest.substr(0, rest.length() - 2)
+	return rest + "," + out
+
+
+static func _trim(value: float) -> String:
+	var text := "%.2f" % value if value < 10.0 else "%.1f" % value
+	return text.rstrip("0").rstrip(".")
 
 
 ## The colour of a drink in the glass.

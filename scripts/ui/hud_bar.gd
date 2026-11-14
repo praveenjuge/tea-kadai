@@ -5,6 +5,7 @@ extends PanelContainer
 ## number rolls up, and the menu button.
 
 signal menu_pressed
+signal shop_pressed
 
 const ROLL_SPEED := 8.0
 
@@ -62,6 +63,10 @@ func _ready() -> void:
 	money_box.add_child(_today)
 	row.add_child(money_box)
 
+	var shop := Style.button("Grow", func() -> void: shop_pressed.emit())
+	shop.custom_minimum_size.y = 16
+	shop.tooltip_text = "Helpers, staff and boosts"
+	row.add_child(shop)
 	var menu := Style.button("Menu", func() -> void: menu_pressed.emit(), true)
 	menu.custom_minimum_size.y = 16
 	row.add_child(menu)
@@ -71,9 +76,15 @@ func _process(delta: float) -> void:
 	_shown_money = lerpf(_shown_money, float(_state.money), minf(1.0, delta * ROLL_SPEED))
 	if absf(_shown_money - _state.money) < 0.5:
 		_shown_money = _state.money
-	_money.text = Style.rupees(roundi(_shown_money))
-	var earned := int(_state.today["revenue"]) + int(_state.today["tips"])
-	_today.text = "+%s today" % Style.rupees(earned)
+	_money.text = Style.short_rupees(roundi(_shown_money))
+	var earned := int(_state.today["revenue"]) + int(_state.today["tips"]) + int(_state.today["helpers"])
+	var rate := _state.income_per_second()
+	if _service.frenzy > 0.0:
+		_today.text = "FRENZY ×%d · %ds" % [Catalog.FRENZY_TIMES, ceili(_service.frenzy)]
+		_today.add_theme_color_override("font_color", Style.GOOD)
+	else:
+		_today.text = "+%s today" % Style.short_rupees(earned) + ("  %s" % Style.per_second(rate) if rate > 0.0 else "")
+		_today.add_theme_color_override("font_color", Style.MUTED)
 	_time_label.text = _service.clock.time_text()
 	var phase: String = _service.clock.phase()["name"]
 	_phase.text = phase + ("  ·  Raining" if _service.is_raining() else "")

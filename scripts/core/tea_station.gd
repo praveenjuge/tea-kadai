@@ -69,6 +69,13 @@ func begin_pour() -> bool:
 	return true
 
 
+## A helper's pour: skips the meter and lands a steady, good glass.
+func helper_pour(quality: float) -> void:
+	if stage == Stage.READY:
+		stage = Stage.EMPTY
+		poured.emit(quality, "")
+
+
 func release_pour() -> void:
 	if stage == Stage.POURING:
 		_finish()

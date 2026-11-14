@@ -66,6 +66,16 @@ A broke, dreamy engineering student who drops by every day. He chats, asks you t
 
 Happy customers earn reputation. Each kadai level puts something new on the menu: lemon tea, bajji, filter coffee, samosa. Every week has three goals with a reward each.
 
+Press **Grow** (on the top bar, in the morning or at night) to spend your money on:
+
+- **Helpers**: flask boys, office tea runners, bus stand carts and more. They earn on their own, all day, and half as much while the game is closed (up to 8 hours). Buy as many as you like; each costs a little more than the last.
+- **Staff**: a chai boy who serves ready orders, Cousin Ravi who makes the drinks people are waiting for, and a vadai master at the fryer. They step in when you leave their station alone for a few seconds.
+- **Boosts**: one-time buys that double a helper, every helper, your tips, or how often golden glasses appear.
+
+Now and then a **golden glass** floats over the street. Click it before it fades for a lump of money or a helper frenzy.
+
+Once a kadai has earned ₹1 lakh, you can **open a branch** in another part of Chennai from the night screen. You start fresh there, but keep your recipes and regulars, and every branch adds 25% to all earnings for good.
+
 ### Upgrades
 
 Bench, bigger milk pot, fresh paint and sign, plants and string lights, table fan, radio and posters, bigger counter, lit signboard. Most unlock at a kadai level, and each one shows on the stall.

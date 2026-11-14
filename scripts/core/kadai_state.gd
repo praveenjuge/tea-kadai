@@ -21,6 +21,16 @@ var best_streak := 0
 var reputation := 0
 ## This week's running totals for the goals, and which goals are done.
 var week := {}
+## Helper id -> how many you own.
+var helpers := {}
+## Staff hired and boosts bought.
+var staff: Array[String] = []
+var boosts: Array[String] = []
+## Everything earned ever, and since this branch opened.
+var earned_total := 0
+var branch_earned := 0
+## How many new branches you've opened; 0 is the first kadai.
+var branches := 0
 
 
 func _init() -> void:
@@ -47,7 +57,7 @@ func _reset_today() -> void:
 	today = {
 		"revenue": 0, "tips": 0, "spent": 0, "upgrades": 0,
 		"served": 0, "waited_long": 0, "gave_up": 0, "out_of_stock": 0, "too_costly": 0, "no_seat": 0, "wasted": 0,
-		"perfect": 0, "best_streak": 0, "points": 0,
+		"perfect": 0, "best_streak": 0, "points": 0, "helpers": 0,
 		"sold": {}, "bought": {}, "met": [], "level_ups": [], "goals_done": [],
 	}
 
@@ -59,6 +69,8 @@ func to_dict() -> Dictionary:
 		"version": 1, "day": day, "money": money, "stock": stock, "prices": prices,
 		"upgrades": upgrades, "recipes": recipes, "regulars": regulars, "best_streak": best_streak,
 		"reputation": reputation, "week": week,
+		"helpers": helpers, "staff": staff, "boosts": boosts,
+		"earned_total": earned_total, "branch_earned": branch_earned, "branches": branches,
 	}
 
 
@@ -92,6 +104,19 @@ static func from_dict(data: Dictionary) -> KadaiState:
 		state.week["stars"].append(int(stars))
 	for id in saved_week.get("done", []):
 		state.week["done"].append(str(id))
+	var saved_helpers: Dictionary = data.get("helpers", {})
+	for id in saved_helpers:
+		if Catalog.HELPERS.has(id):
+			state.helpers[id] = maxi(0, int(saved_helpers[id]))
+	for id in data.get("staff", []):
+		if Catalog.STAFF.has(id) and not state.staff.has(id):
+			state.staff.append(id)
+	for id in data.get("boosts", []):
+		if Catalog.BOOSTS.has(id) and not state.boosts.has(id):
+			state.boosts.append(id)
+	state.earned_total = maxi(0, int(data.get("earned_total", 0)))
+	state.branch_earned = maxi(0, int(data.get("branch_earned", 0)))
+	state.branches = maxi(0, int(data.get("branches", 0)))
 	return state
 
 
@@ -278,7 +303,7 @@ func use_recipe(item: String) -> bool:
 
 func record_sale(item: String) -> int:
 	var price := int(prices[item])
-	money += price
+	_earn(price)
 	today["revenue"] += price
 	week["revenue"] = int(week["revenue"]) + price
 	today["sold"][item] = int(today["sold"].get(item, 0)) + 1
@@ -286,7 +311,7 @@ func record_sale(item: String) -> int:
 
 
 func record_tip(amount: int) -> void:
-	money += amount
+	_earn(amount)
 	today["tips"] += amount
 	week["tips"] = int(week.get("tips", 0)) + amount
 
@@ -308,5 +333,159 @@ func stars_today() -> int:
 	return stars
 
 
+func _earn(amount: int) -> void:
+	money += amount
+	earned_total += amount
+	branch_earned += amount
+
+
+# --- Helpers, staff, boosts and branches ----------------------------------
+
+func helper_count(id: String) -> int:
+	return int(helpers.get(id, 0))
+
+
+## The next one costs a little more than the last.
+func helper_cost(id: String) -> int:
+	var base := float(Catalog.HELPERS[id]["cost"])
+	return ceili(base * pow(Catalog.HELPER_COST_GROWTH, helper_count(id)))
+
+
+func buy_helper(id: String) -> bool:
+	var cost := helper_cost(id)
+	if money < cost:
+		return false
+	money -= cost
+	helpers[id] = helper_count(id) + 1
+	return true
+
+
+## Rupees per second one helper of this type earns, with boosts and branches.
+func helper_income(id: String) -> float:
+	var income := float(Catalog.HELPERS[id]["income"])
+	for boost in boosts:
+		var info: Dictionary = Catalog.BOOSTS[boost]
+		if info.get("helper", "") == id or info.get("all", false):
+			income *= 2.0
+	return income * branch_multiplier()
+
+
+## Rupees per second all helpers earn together.
+func income_per_second() -> float:
+	var total := 0.0
+	for id in helpers:
+		total += helper_income(id) * helper_count(id)
+	return total
+
+
+## Adds money helpers earned (not counted as counter sales).
+func record_helper_income(amount: int) -> void:
+	_earn(amount)
+	today["helpers"] += amount
+
+
+func has_staff(id: String) -> bool:
+	return staff.has(id)
+
+
+func can_hire(id: String) -> bool:
+	var info: Dictionary = Catalog.STAFF[id]
+	return not has_staff(id) and level() >= int(info["level"]) and money >= int(info["cost"])
+
+
+func hire(id: String) -> bool:
+	if not can_hire(id):
+		return false
+	money -= int(Catalog.STAFF[id]["cost"])
+	staff.append(id)
+	return true
+
+
+func has_boost(id: String) -> bool:
+	return boosts.has(id)
+
+
+## Whether a boost is on offer yet (you have enough of what it boosts).
+func boost_unlocked(id: String) -> bool:
+	var info: Dictionary = Catalog.BOOSTS[id]
+	if info.has("helper") and helper_count(info["helper"]) < int(info.get("needs", 0)):
+		return false
+	if info.has("needs_total"):
+		var total := 0
+		for helper in helpers:
+			total += helper_count(helper)
+		if total < int(info["needs_total"]):
+			return false
+	return true
+
+
+func buy_boost(id: String) -> bool:
+	var cost := int(Catalog.BOOSTS[id]["cost"])
+	if has_boost(id) or not boost_unlocked(id) or money < cost:
+		return false
+	money -= cost
+	boosts.append(id)
+	return true
+
+
+## Tips multiplier from boosts and branches.
+func tip_multiplier() -> float:
+	var times := branch_multiplier()
+	for boost in boosts:
+		if Catalog.BOOSTS[boost].get("tips", false):
+			times *= 2.0
+	return times
+
+
+## Every branch opened adds a permanent bonus.
+func branch_multiplier() -> float:
+	return 1.0 + Catalog.BRANCH_BONUS * branches
+
+
+func branch_name() -> String:
+	return Catalog.BRANCHES[branches % Catalog.BRANCHES.size()]
+
+
+func next_branch_name() -> String:
+	return Catalog.BRANCHES[(branches + 1) % Catalog.BRANCHES.size()]
+
+
+func can_open_branch() -> bool:
+	return branch_earned >= Catalog.BRANCH_NEEDS
+
+
+## Starts fresh in a new part of Chennai: money, stock, prices, level,
+## upgrades, helpers, staff and boosts reset; the story, regulars, recipes and
+## the day carry on, and the new branch earns a permanent bonus.
+func open_branch() -> bool:
+	if not can_open_branch():
+		return false
+	var fresh := KadaiState.new()
+	money = fresh.money
+	stock = fresh.stock
+	prices = fresh.prices
+	reputation = 0
+	upgrades.clear()
+	helpers.clear()
+	staff.clear()
+	boosts.clear()
+	branch_earned = 0
+	branches += 1
+	return true
+
+
+## Pays out what helpers earned while you were away, and returns it.
+func collect_away(seconds: float) -> int:
+	var amount := away_earnings(seconds)
+	_earn(amount)
+	return amount
+
+
+## What helpers earned while you were away for this many seconds.
+func away_earnings(seconds: float) -> int:
+	var capped := clampf(seconds, 0.0, Catalog.AWAY_MAX_HOURS * 3600.0)
+	return floori(income_per_second() * capped * Catalog.AWAY_RATE)
+
+
 func profit_today() -> int:
-	return int(today["revenue"]) + int(today["tips"]) - int(today["spent"])
+	return int(today["revenue"]) + int(today["tips"]) + int(today["helpers"]) - int(today["spent"])

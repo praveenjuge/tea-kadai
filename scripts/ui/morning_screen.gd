@@ -5,6 +5,7 @@ extends Control
 
 signal open_requested
 signal prices_requested
+signal shop_requested
 
 ## Below this many, an item counts as running low.
 const LOW_STOCK := 6
@@ -38,6 +39,8 @@ func _ready() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 10)
 	var title := Style.label("Day %d · %s" % [_state.day, Catalog.date_text(_state.day)], Style.TEXT, Style.TITLE_SIZE)
+	if _state.branches > 0:
+		title.text += " · " + _state.branch_name()
 	title.size_flags_horizontal = SIZE_EXPAND_FILL
 	header.add_child(title)
 	header.add_child(_build_level_chip())
@@ -80,6 +83,7 @@ func _ready() -> void:
 	_stock_note.size_flags_horizontal = SIZE_EXPAND_FILL
 	_stock_note.clip_text = true
 	footer.add_child(_stock_note)
+	footer.add_child(Style.button("Grow", func() -> void: shop_requested.emit(), true))
 	footer.add_child(Style.button("Prices", func() -> void: prices_requested.emit(), true))
 	footer.add_child(Style.button("Open the kadai →", func() -> void: open_requested.emit()))
 	root.add_child(footer)

@@ -24,6 +24,11 @@ signal said(seat: int, text: String)
 signal asked(seat: int, question: String, options: Array)
 ## A new part of the day began, like the evening rush.
 signal phase_started(phase: Dictionary)
+## A golden glass appeared on the street; "spot" is 0..1 across the street.
+signal golden_appeared(spot: Vector2)
+signal golden_gone
+## Helpers earned some money (for a little floating number).
+signal helpers_earned(amount: int)
 
 const SUPPLY_CHECK_SECONDS := 1.0
 const STREAK_BONUS_MAX := 5
@@ -51,6 +56,17 @@ var regulars: Array[RegularVisit] = []
 ## Tips are doubled for everyone (a regular is celebrating).
 var treat := false
 var _ambient := false
+## Helper money not yet a whole rupee.
+var _income_carry := 0.0
+var _income_shown := 0.0
+## Seconds of frenzy left, and how long until the next golden glass.
+var frenzy := 0.0
+var golden_left := 0.0
+var _golden_timer := 0.0
+## Seconds since you last touched the tea station or the fryer, for staff.
+var _tea_idle := 99.0
+var _fry_idle := 99.0
+var _staff_timer := 0.0
 var _spawn_timer := 2.0
 var _supply_timer := SUPPLY_CHECK_SECONDS
 var _golden_told := false
@@ -74,6 +90,7 @@ func _init(kadai: KadaiState, seed_value: int = -1, ambient: bool = false) -> vo
 		tea.fill_seconds = TeaStation.FILL_SECONDS / 2.0
 	rain = Catalog.rain_for_day(state.day)
 	tea.poured.connect(_on_tea_poured)
+	_golden_timer = _next_golden_gap()
 	if not ambient:
 		for id in Story.REGULAR_ORDER:
 			if state.day >= Story.first_day(id):
@@ -97,6 +114,9 @@ func update(delta: float) -> void:
 		_update_arrivals(delta)
 		for visit in regulars:
 			visit.update(delta)
+		_update_helpers(delta)
+		_update_staff(delta)
+		_update_golden(delta)
 	if clock.is_over():
 		_close()
 
@@ -110,6 +130,7 @@ func is_raining() -> bool:
 
 ## Press: start a new glass, or start pouring a full one.
 func tea_press() -> void:
+	_tea_idle = 0.0
 	match tea.stage:
 		TeaStation.Stage.EMPTY:
 			if glasses_ready() >= tray_size():
@@ -159,6 +180,7 @@ func plate_size() -> int:
 
 ## Drops a batch of vadai in, or lifts the batch out.
 func fry_press() -> void:
+	_fry_idle = 0.0
 	if fryer.is_empty():
 		_fry_drop()
 	else:
@@ -182,6 +204,25 @@ func serve(seat: int) -> void:
 		_finish_customer(seat)
 	elif handed == 0:
 		message.emit("Nothing ready for them yet.")
+
+
+## Clicking the golden glass: either a lump of money or a helper frenzy.
+## Returns what happened: "bonus" or "frenzy", or "" if there's no glass.
+func claim_golden() -> String:
+	if golden_left <= 0.0:
+		return ""
+	golden_left = 0.0
+	golden_gone.emit()
+	if rng.randf() < 0.5 and state.income_per_second() > 0.0:
+		frenzy = Catalog.FRENZY_SECONDS
+		message.emit("Frenzy! Helpers earn %dx for %d seconds!" % [Catalog.FRENZY_TIMES, Catalog.FRENZY_SECONDS])
+		happened.emit("frenzy", 0)
+		return "frenzy"
+	var bonus := maxi(Catalog.GOLDEN_MIN_BONUS, roundi(state.income_per_second() * 90.0))
+	state.record_tip(bonus)
+	message.emit("A golden glass! +₹%d" % bonus)
+	happened.emit("golden", bonus)
+	return "bonus"
 
 
 ## The player answers a regular's question.
@@ -334,6 +375,93 @@ func _make_order(kind: Dictionary) -> Dictionary:
 	return order
 
 
+## Helpers earn steadily through the day, much more during a frenzy.
+func _update_helpers(delta: float) -> void:
+	frenzy = maxf(0.0, frenzy - delta)
+	var rate := state.income_per_second() * (Catalog.FRENZY_TIMES if frenzy > 0.0 else 1.0)
+	_income_carry += rate * delta
+	if _income_carry >= 1.0:
+		var whole := floori(_income_carry)
+		_income_carry -= whole
+		state.record_helper_income(whole)
+		_income_shown += whole
+	# Show a little "+₹" about once a second instead of every frame.
+	if _income_shown >= maxf(1.0, rate):
+		helpers_earned.emit(roundi(_income_shown))
+		_income_shown = 0.0
+
+
+## Staff step in at stations you've left alone for a few seconds.
+func _update_staff(delta: float) -> void:
+	_tea_idle += delta
+	_fry_idle += delta
+	_staff_timer -= delta
+	if _staff_timer > 0.0:
+		return
+	_staff_timer = Catalog.STAFF_PACE
+	if state.has_staff("chai_boy"):
+		for seat in seats.size():
+			if can_fill(seat):
+				serve(seat)
+				break
+	if state.has_staff("cousin") and _tea_idle >= Catalog.STAFF_IDLE:
+		if tea.can_pour():
+			tea.helper_pour(0.75)
+		elif tea.stage == TeaStation.Stage.EMPTY:
+			var drink := _needed(drinks())
+			if drink != "" and glasses_ready() < tray_size() and state.can_make(drink):
+				tea_kind = drink
+				state.use_recipe(drink)
+				tea.start(rng, drink)
+	if state.has_staff("vadai_master") and _fry_idle >= Catalog.STAFF_IDLE:
+		if fryer.doneness() == Fryer.Doneness.GOLDEN:
+			_fry_take()
+		elif fryer.is_empty():
+			var snack := _needed(fries())
+			if snack != "":
+				fry_kind = snack
+				if _batch_size() > 0:
+					_fry_drop()
+
+
+## The made item waiting customers are short of the most, or "".
+func _needed(items: Array[String]) -> String:
+	var best := ""
+	var best_need := 0
+	for item in items:
+		var need := -int(ready[item].size())
+		for customer in seats:
+			if customer != null:
+				need += int(customer["order"].get(item, 0))
+		if need > best_need:
+			best = item
+			best_need = need
+	return best
+
+
+## Now and then a golden glass appears on the street for a few seconds.
+func _update_golden(delta: float) -> void:
+	if golden_left > 0.0:
+		golden_left -= delta
+		if golden_left <= 0.0:
+			golden_gone.emit()
+		return
+	_golden_timer -= delta
+	if _golden_timer <= 0.0 and clock.can_arrive():
+		_golden_timer = _next_golden_gap()
+		golden_left = Catalog.GOLDEN_LIFE
+		golden_appeared.emit(Vector2(rng.randf_range(0.1, 0.9), rng.randf_range(0.2, 0.8)))
+		happened.emit("golden_seen", 0)
+
+
+func _next_golden_gap() -> float:
+	var gap := rng.randf_range(Catalog.GOLDEN_GAP.x, Catalog.GOLDEN_GAP.y)
+	for boost in state.boosts:
+		if Catalog.BOOSTS[boost].get("golden", false):
+			gap *= 0.5
+	return gap
+
+
 func _check_phase() -> void:
 	var index := clock.phase_index()
 	if index != _phase_index:
@@ -410,7 +538,9 @@ func _finish_customer(seat: int) -> void:
 	var calm: float = customer["patience"] / customer["patience_max"]
 	var tip := 0
 	if not customer["grumpy"] and avg >= 0.7:
-		var multiplier := 2.0 if treat else 1.0
+		var multiplier := (2.0 if treat else 1.0) * state.tip_multiplier()
+		if frenzy > 0.0:
+			multiplier *= 2.0
 		if state.has_upgrade("paint"):
 			multiplier *= Catalog.PAINT_TIPS
 		if customer.has("regular"):

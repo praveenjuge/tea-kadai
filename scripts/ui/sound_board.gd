@@ -32,6 +32,7 @@ const EVENTS := {
 	"poured_flat": "flat", "spilled": "spill", "vadai_drop": "lift", "vadai_golden": "golden",
 	"vadai_lifted": "lift", "vadai_burnt": "burnt", "paid": "coin", "arrive": "arrive",
 	"grumble": "grumble", "streak": "golden", "friendship": "bell", "recipe": "golden", "treat": "perfect",
+	"golden_seen": "bell", "golden": "golden", "frenzy": "perfect",
 }
 const STREET_SOUNDS: Array[String] = ["crow", "crow", "horn", "bell"]
 const STREET_GAP := Vector2(6.0, 16.0)

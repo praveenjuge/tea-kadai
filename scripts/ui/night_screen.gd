@@ -5,6 +5,8 @@ extends Control
 ## upgrades to spend the money on.
 
 signal next_requested
+signal shop_requested
+signal branch_requested
 
 const ROW_GAP := 0.35
 const COUNT_SECONDS := 0.4
@@ -59,6 +61,9 @@ func _ready() -> void:
 	_saved.size_flags_horizontal = SIZE_EXPAND_FILL
 	_saved.clip_text = true
 	footer.add_child(_saved)
+	if _state.can_open_branch():
+		footer.add_child(Style.button("Open a branch", func() -> void: branch_requested.emit()))
+	footer.add_child(Style.button("Grow", func() -> void: shop_requested.emit(), true))
 	footer.add_child(Style.button("Save day card", _save_card, true))
 	footer.add_child(Style.button("Plan tomorrow →", func() -> void: next_requested.emit()))
 	right.add_child(footer)
@@ -87,6 +92,8 @@ func _build_tally() -> Control:
 	_add_row(grid, "Perfect pours", int(today["perfect"]), false)
 	_add_row(grid, "Sales", int(today["revenue"]), true)
 	_add_row(grid, "Tips", int(today["tips"]), true)
+	if int(today["helpers"]) > 0:
+		_add_row(grid, "Helpers earned", int(today["helpers"]), true)
 	_add_row(grid, "Stock bought (keeps)", -int(today["spent"]), true)
 	var profit := _state.profit_today()
 	_add_row(grid, "Profit today", profit, true, Style.GOOD if profit >= 0 else Style.BAD)
@@ -268,6 +275,10 @@ func _buy(id: String) -> void:
 		var button: Button = _upgrades[id]
 		button.text = "Bought!"
 		_refresh_upgrades()
+
+
+func refresh() -> void:
+	_refresh_upgrades()
 
 
 func _refresh_upgrades() -> void:

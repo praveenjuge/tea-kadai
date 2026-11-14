@@ -17,6 +17,26 @@ static func save(state: KadaiState) -> void:
 		push_error("Could not save the game: %s" % error_string(FileAccess.get_open_error()))
 		return
 	file.store_string(JSON.stringify(state.to_dict(), "\t"))
+	touch()
+
+
+## Notes when the player was last here, so helpers can earn while they're away.
+static func touch() -> void:
+	var file := FileAccess.open(_seen_path(), FileAccess.WRITE)
+	if file != null:
+		file.store_string(str(int(Time.get_unix_time_from_system())))
+
+
+## Seconds since the player was last here, or 0 if we don't know.
+static func seconds_away() -> float:
+	if not FileAccess.file_exists(_seen_path()):
+		return 0.0
+	var seen := FileAccess.get_file_as_string(_seen_path()).to_int()
+	return maxf(0.0, Time.get_unix_time_from_system() - seen) if seen > 0 else 0.0
+
+
+static func _seen_path() -> String:
+	return path.get_basename() + "_seen.txt"
 
 
 ## The saved kadai, or null if there is no readable save.
@@ -31,5 +51,6 @@ static func load_state() -> KadaiState:
 
 
 static func delete() -> void:
-	if exists():
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	for file in [path, _seen_path()]:
+		if FileAccess.file_exists(file):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(file))

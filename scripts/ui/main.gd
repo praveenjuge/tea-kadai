@@ -51,11 +51,44 @@ func _unhandled_input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		sound.stop_all()
+		_note_seen()
 
 
 func _quit() -> void:
 	sound.stop_all()
+	_note_seen()
 	get_tree().quit()
+
+
+## Remembers when the player left, for "while you were away" money.
+func _note_seen() -> void:
+	if state != null and SaveGame.exists():
+		SaveGame.touch()
+
+
+## Helpers kept working while the game was closed; pays it out and says so.
+func _collect_away(seconds: float) -> void:
+	if seconds < 60.0 or state.income_per_second() <= 0.0:
+		return
+	var amount := state.collect_away(seconds)
+	if amount <= 0:
+		return
+	var hours := seconds / 3600.0
+	var away := ("%d minutes" % roundi(seconds / 60.0)) if hours < 1.0 else ("%.1f hours" % minf(hours, Catalog.AWAY_MAX_HOURS))
+	var note := MenuOverlay.new("While you were away…")
+	note.add(Style.paragraph("Your helpers kept the tea flowing for %s." % away, 300.0))
+	note.add(Style.label("+%s" % Style.short_rupees(amount), Style.GOOD, Style.TITLE_SIZE))
+	note.add_buttons([Style.button("Nandri!", note.close)])
+	open_overlay(note)
+	sound.play("coin")
+
+
+func _open_shop(screen: Control) -> void:
+	var shop := HelpersShop.new(state)
+	shop.bought.connect(func(_kind: String) -> void: sound.play("coin"))
+	if screen.has_method("refresh"):
+		shop.closed.connect(screen.refresh)
+	open_overlay(shop)
 
 
 ## Shows a menu overlay above whatever screen is up.
@@ -111,6 +144,9 @@ func _on_title_choice(choice: String) -> void:
 			state = SaveGame.load_state()
 			if state == null:
 				state = KadaiState.new()
+			# Read before the morning save notes that we're back.
+			var away := SaveGame.seconds_away()
+			_collect_away(away)
 			_show_morning()
 		"new":
 			if SaveGame.exists():
@@ -141,6 +177,7 @@ func _show_morning() -> void:
 	SaveGame.save(state)
 	var screen := MorningScreen.new(state, help)
 	screen.open_requested.connect(_show_service)
+	screen.shop_requested.connect(_open_shop.bind(screen))
 	screen.prices_requested.connect(func() -> void:
 		open_overlay(MenuOverlay.prices(state)).closed.connect(screen.refresh))
 	_swap(screen)
@@ -169,6 +206,8 @@ func _show_night() -> void:
 	state.close_day()
 	var screen := NightScreen.new(state, sound)
 	screen.next_requested.connect(_on_next_day)
+	screen.shop_requested.connect(_open_shop.bind(screen))
+	screen.branch_requested.connect(_ask_branch)
 	_swap(screen)
 	sound.set_scene("night")
 	if state.is_week_end():
@@ -176,6 +215,17 @@ func _show_night() -> void:
 		get_tree().create_timer(3.2).timeout.connect(func() -> void:
 			if _screen == screen:
 				open_overlay(MenuOverlay.week_done(state, screen)))
+
+
+func _ask_branch() -> void:
+	var ask := open_overlay(MenuOverlay.confirm("Open a branch in %s?" % state.next_branch_name(),
+		"You start fresh there: money, stock, upgrades, helpers and staff reset. Your recipes, regulars and "
+		+ "the day carry on, and every branch adds +%d%% to all earnings for good." % roundi(Catalog.BRANCH_BONUS * 100),
+		"Open it", "Not yet"))
+	ask.confirmed.connect(func() -> void:
+		if state.open_branch():
+			sound.play("golden")
+			_on_next_day())
 
 
 func _on_next_day() -> void:

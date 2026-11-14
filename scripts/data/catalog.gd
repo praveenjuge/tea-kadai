@@ -194,6 +194,69 @@ const WEEK_GOALS := [
 ]
 const GOAL_REWARD := 100
 
+## Helpers earn money on their own, during the day and a little while you're
+## away. Buy as many as you like; each costs a bit more than the last.
+## "income" is rupees per second each.
+const HELPERS := {
+	"flask_boy": {"name": "Flask boy", "about": "Carries flasks of tea to the shops nearby.", "cost": 150, "income": 0.3},
+	"office_runner": {"name": "Office tea runner", "about": "Takes trays of tea up to the offices.", "cost": 1100, "income": 2.0},
+	"bus_cart": {"name": "Bus stand cart", "about": "A second cart by the bus stand.", "cost": 7000, "income": 11.0},
+	"college_stall": {"name": "College gate stall", "about": "Exams mean tea. Lots of tea.", "cost": 45000, "income": 60.0},
+	"train_vendor": {"name": "Train vendor", "about": "\"Chai, chai, coffee!\" on every train to Central.", "cost": 300000, "income": 330.0},
+	"film_catering": {"name": "Film set catering", "about": "Tea for the whole crew, take after take.", "cost": 2000000, "income": 1800.0},
+}
+const HELPER_ORDER: Array[String] = ["flask_boy", "office_runner", "bus_cart", "college_stall", "train_vendor", "film_catering"]
+const HELPER_COST_GROWTH := 1.15
+
+## Staff take over work at the counter. One of each, from a kadai level.
+const STAFF := {
+	"chai_boy": {"name": "Chai boy", "about": "Hands ready orders to customers for you.", "cost": 900, "level": 2},
+	"cousin": {"name": "Cousin Ravi", "about": "Makes the drinks customers are waiting for.", "cost": 2500, "level": 3},
+	"vadai_master": {"name": "Vadai master", "about": "Fries snacks and lifts them out when golden.", "cost": 3500, "level": 4},
+}
+const STAFF_ORDER: Array[String] = ["chai_boy", "cousin", "vadai_master"]
+## How often staff act, in seconds, and how long you must leave a station
+## alone before they step in.
+const STAFF_PACE := 1.2
+const STAFF_IDLE := 3.0
+
+## Boosts: one-time multipliers. "helper" doubles one helper type, "all" every
+## helper, "tips" counter tips, "golden" how often golden glasses appear.
+## "needs" is how many of a helper you must own first.
+const BOOSTS := {
+	"steel_flasks": {"name": "Steel flasks", "about": "Flask boys earn twice as much.", "cost": 2000,
+		"helper": "flask_boy", "needs": 5},
+	"lift_pass": {"name": "Office lift pass", "about": "Office runners earn twice as much.", "cost": 15000,
+		"helper": "office_runner", "needs": 5},
+	"bus_permit": {"name": "Bus stand permit", "about": "Bus stand carts earn twice as much.", "cost": 90000,
+		"helper": "bus_cart", "needs": 5},
+	"lucky_tumbler": {"name": "Lucky tumbler", "about": "Tips at the counter are doubled.", "cost": 5000, "tips": true},
+	"sharp_eyes": {"name": "Sharp eyes", "about": "Golden glasses turn up twice as often.", "cost": 8000, "golden": true},
+	"strong_decoction": {"name": "Strong decoction", "about": "Every helper earns twice as much.", "cost": 60000,
+		"all": true, "needs_total": 25},
+}
+const BOOST_ORDER: Array[String] = ["steel_flasks", "lucky_tumbler", "sharp_eyes", "lift_pass", "strong_decoction", "bus_permit"]
+
+## The golden glass: now and then one appears on the street. Click it in time
+## for a bonus, or a frenzy where helpers earn far more for a while.
+const GOLDEN_GAP := Vector2(70.0, 130.0)
+const GOLDEN_LIFE := 9.0
+const FRENZY_SECONDS := 20.0
+const FRENZY_TIMES := 7.0
+const GOLDEN_MIN_BONUS := 100
+
+## While you're away, helpers earn this share of their usual rate, for up to
+## this many hours.
+const AWAY_RATE := 0.5
+const AWAY_MAX_HOURS := 8.0
+
+## Opening a new branch: once a kadai has earned this much since it opened,
+## you can start fresh in a new part of Chennai with a permanent bonus.
+const BRANCH_NEEDS := 100000
+const BRANCH_BONUS := 0.25
+const BRANCHES: Array[String] = ["Triplicane", "Mylapore", "T. Nagar", "Adyar", "Besant Nagar", "Egmore",
+	"Velachery", "Anna Nagar", "Royapettah", "Kodambakkam"]
+
 ## Things to save up for, bought on the night screen. "level" is the kadai
 ## level needed before it's for sale.
 const UPGRADES := {
