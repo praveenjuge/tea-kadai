@@ -1,10 +1,25 @@
 # Tea Kadai
 
-A cozy pixel-art shop sim about running a roadside tea kadai in Chennai. Make tea by hand, fry vadai, get to know the people on your street, and grow one stall into a few.
+[![Build and release](https://github.com/praveenjuge/tea-kadai/actions/workflows/release.yml/badge.svg)](https://github.com/praveenjuge/tea-kadai/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/praveenjuge/tea-kadai)](https://github.com/praveenjuge/tea-kadai/releases/latest)
 
-This is the first playable: **one fun day** at one stall. See [docs/PLAN.md](docs/PLAN.md) for the full game plan and milestones.
+A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai street. Make tea by hand, fry vadai and bajji, get to know your regulars, and grow the shop week by week.
 
-## Run it
+[![Download for Mac](https://img.shields.io/badge/Download-Mac-2f7fb5?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-macOS.zip)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-e8a33d?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Windows.exe)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux-3a8a3a?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Linux.tar.gz)
+
+![Tea Kadai: a morning rush at the kadai, with Karthik asking a question](docs/screenshot.png)
+
+## Install
+
+- **Mac** (Intel and Apple Silicon): unzip `TeaKadai-macOS.zip` and open Tea Kadai. The app isn't notarized, so the first time macOS blocks it: open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
+- **Windows**: run `TeaKadai-Windows.exe`. If SmartScreen appears, click **More info → Run anyway**.
+- **Linux**: extract `TeaKadai-Linux.tar.gz` and run `TeaKadai-Linux.x86_64`.
+
+Every push to `main` builds all three and publishes them as a new release.
+
+## Run from source
 
 Needs [Godot 4.7](https://godotengine.org/) (`brew install --cask godot` on a Mac).
 
@@ -12,7 +27,7 @@ Needs [Godot 4.7](https://godotengine.org/) (`brew install --cask godot` on a Ma
 godot --path .
 ```
 
-Skip the morning market and go straight to service:
+Skip the title and morning and go straight to service:
 
 ```bash
 godot --path . -- --service
@@ -20,15 +35,15 @@ godot --path . -- --service
 
 Or open the folder in the Godot editor and press Play.
 
-## Share it with friends
+### Build the apps yourself
 
-Build the Mac app (needs Godot's 4.7.2 export templates installed once):
+With Godot's 4.7.2 export templates installed:
 
 ```bash
-godot --headless --path . --export-release "macOS" "build/Tea Kadai.zip"
+godot --headless --path . --export-release "macOS" build/TeaKadai-macOS.zip
+godot --headless --path . --export-release "Windows" build/TeaKadai-Windows.exe
+godot --headless --path . --export-release "Linux" build/TeaKadai-Linux.x86_64
 ```
-
-Send `build/Tea Kadai.zip`. It works on Intel and Apple Silicon Macs. The app isn't notarized, so the first time a friend opens it macOS will block it. They should open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to Tea Kadai. After that it opens normally.
 
 ## How a day works
 
@@ -39,9 +54,13 @@ Send `build/Tea Kadai.zip`. It works on Intel and Apple Silicon Macs. The app is
 
 You can't lose. A bad day just means less money for tomorrow.
 
-### Karthik
+### Regulars
+
+**Karthik**
 
 A broke, dreamy engineering student who drops by every day. He chats, asks you things, and after a couple of days just orders "the usual" (remember it for a bonus). Get friendly and he teaches you ginger tea, brings his friends, and tips double. His story runs across the first week.
+
+**Murugan**, an auto driver saving for his own auto, starts coming by in week 2.
 
 ### Growing the kadai
 
@@ -103,4 +122,9 @@ assets/fonts/               Pixelify Sans (SIL Open Font License)
 tools/make_sounds.gd        Synthesizes the placeholder sounds
 tests/                      Headless rule checks and an input-driven play test
 docs/PLAN.md                The game plan
+.github/workflows/          Builds and releases on every push to main
 ```
+
+## Licence
+
+[MIT](LICENSE), for the code, art, sounds and story. The Pixelify Sans font is by the Pixelify Sans Project Authors under the [SIL Open Font License](assets/fonts/OFL.txt).

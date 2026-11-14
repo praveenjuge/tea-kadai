@@ -78,6 +78,17 @@ func _ready() -> void:
 		note.offset_top = -28
 		add_child(note)
 
+	var version := Style.outlined("v" + str(ProjectSettings.get_setting("application/config/version", "dev")), Style.MUTED)
+	version.anchor_left = 1.0
+	version.anchor_right = 1.0
+	version.anchor_top = 1.0
+	version.anchor_bottom = 1.0
+	version.offset_left = -80
+	version.offset_right = -12
+	version.offset_top = -26
+	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(version)
+
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.6)
 
