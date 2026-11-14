@@ -214,6 +214,12 @@ Asked for: no black bars in fullscreen, and graphics and UI that look like a rea
 - Sound volumes evened out by measured loudness.
 - A Mac app (universal, ad-hoc signed) for friends, with first-launch instructions in the README.
 
+## Round 7: open source (2026-11-14)
+
+- MIT licence; the repo is public.
+- No Godot boot splash.
+- GitHub Actions builds macOS, Windows and Linux on every push to main and publishes the next patch release. A newer push cancels an older run, and only the last 10 releases are kept.
+
 ## Next up
 
 In order:
