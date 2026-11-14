@@ -6,6 +6,13 @@
   font-display: swap;
 }
 
+/* Chunky arcade titles; Pixelify Sans for everything else. */
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("/fonts/PressStart2P-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   --bg: #2a1c13;
   --panel: #3b2a1e;
@@ -22,6 +29,7 @@
   --blue: #6aa0d9;
   --pink: #d977b8;
   --px: 4px;
+  --title-font: "Press Start 2P", "Pixelify Sans", ui-monospace, monospace;
   color-scheme: dark;
 }
 
@@ -105,10 +113,10 @@ code {
 
 h1 {
   margin: 0;
-  font-size: clamp(56px, 12vw, 104px);
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: 2px;
+  font-family: var(--title-font);
+  font-size: clamp(34px, 8.5vw, 76px);
+  line-height: 1.1;
+  font-weight: 400;
   color: var(--accent);
   text-shadow:
     0 var(--px) 0 var(--accent-dark),
@@ -193,9 +201,10 @@ h1 {
 }
 
 .dl-label {
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.1;
+  margin: 4px 0 2px;
+  font-family: var(--title-font);
+  font-size: 22px;
+  line-height: 1.2;
 }
 
 .dl-meta {
@@ -277,7 +286,8 @@ h1 {
 
 .slides figure { margin: 0; }
 
-.slides img {
+.slides img,
+.slides video {
   display: block;
   width: 100%;
   height: auto;
@@ -360,12 +370,14 @@ h1 {
 .features h2,
 .install h2,
 .install h3 {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
+  font-family: var(--title-font);
+  font-weight: 400;
   color: var(--accent);
-  line-height: 1.2;
+  line-height: 1.5;
 }
 
-.features h2 { font-size: 22px; }
+.features h2 { font-size: 15px; }
 
 .features p,
 .install p {
@@ -380,7 +392,7 @@ h1 {
   padding: 28px;
 }
 
-.install h2 { font-size: 28px; }
+.install h2 { font-size: 20px; }
 
 .install-intro {
   margin-bottom: 20px !important;
@@ -394,7 +406,7 @@ h1 {
 }
 
 .install h3 {
-  font-size: 20px;
+  font-size: 14px;
   color: var(--accent-light);
 }
 

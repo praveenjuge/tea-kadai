@@ -11,11 +11,11 @@ A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai str
 [![Download for Windows](https://img.shields.io/badge/Download-Windows-e8a33d?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Windows.exe)
 [![Download for Linux](https://img.shields.io/badge/Download-Linux-3a8a3a?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Linux.tar.gz)
 
-![The morning rush: customers wait at the counter with their orders in bubbles, above the tea station, the fryer and the serving shelf](website/public/screenshots/morning-rush.png)
+![A rainy evening rush: a full counter with orders up, umbrellas going by, and customers chatting while tea is poured](website/public/screenshots/rainy-rush.gif)
 
 | | |
 | --- | --- |
-| ![An evening rush in the rain, with a full counter](website/public/screenshots/rainy-evening.png) | ![The morning market: the newspaper, the week's weather and goals, and the market stalls](website/public/screenshots/market.png) |
+| ![The morning rush: customers wait at the counter with their orders in bubbles](website/public/screenshots/morning-rush.png) | ![The morning market: the newspaper, the week's weather and goals, and the market stalls](website/public/screenshots/market.png) |
 | ![The night tally on a chalkboard, with the week's goals and the regulars' news](website/public/screenshots/night.png) | ![The Grow panel with helpers to hire](website/public/screenshots/grow.png) |
 
 ## Install
@@ -173,7 +173,7 @@ Preview it locally:
 cd website && npx wrangler dev
 ```
 
-The screenshots here and on the site come from the real game. To retake them (a game window opens for about a minute):
+The screenshots and the gameplay clip here and on the site come from the real game. To retake the screenshots (a game window opens for about a minute; `tools/take_screenshots.gd` also explains how to re-record the clip):
 
 ```bash
 godot --path . -s tools/take_screenshots.gd

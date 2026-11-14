@@ -62,6 +62,14 @@ slides.addEventListener("keydown", (event) => {
   }
 });
 
+// The gameplay clip plays on a loop unless the visitor prefers less motion.
+const clip = slides.querySelector("video");
+if (clip && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  clip.removeAttribute("autoplay");
+  clip.pause();
+  clip.controls = true;
+}
+
 slides.addEventListener("scroll", () => requestAnimationFrame(update), { passive: true });
 window.addEventListener("resize", update);
 update();
