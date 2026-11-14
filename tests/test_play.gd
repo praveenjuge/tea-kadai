@@ -29,6 +29,8 @@ func _run() -> void:
 	else:
 		printerr("%d play check(s) failed." % _failures)
 	Engine.time_scale = 1.0
+	_main.queue_free()
+	await _frames(2)
 	quit(1 if _failures > 0 else 0)
 
 
@@ -52,6 +54,10 @@ func _service() -> void:
 	_check(screen is ServiceScreen, "opening the kadai starts service")
 	var service: Service = screen._service
 	var state: KadaiState = _main.state
+	var sound: SoundBoard = _main.sound
+	await _frames(30)
+	_check(sound._loops["street_loop"].playing, "street sounds play during service")
+	_check(sound._loops["music_day"].playing, "day music plays in the morning")
 
 	# Pause stops the clock.
 	_key(KEY_P, true)
@@ -73,13 +79,16 @@ func _service() -> void:
 	_check(service.tea.can_pour(), "the glass fills by itself")
 	_key(KEY_SPACE, true)
 	guard = 0
+	var heard_pour := false
 	while service.tea.stage == TeaStation.Stage.POURING and guard < 600:
 		guard += 1
+		heard_pour = heard_pour or sound._loops["pour_loop"].playing
 		var mid := (service.tea.target.x + service.tea.target.y) / 2.0
 		if service.tea.pour_height >= mid:
 			break
 		await process_frame
 	_key(KEY_SPACE, false)
+	_check(heard_pour, "the pour makes a pouring sound")
 	await _frames(2)
 	_check(service.ready_count("tea") == 1, "the poured tea lands on the tray")
 	_check(service.ready["tea"].size() > 0 and service.ready["tea"][0] >= 1.0, "letting go in the green gives a perfect pour")

@@ -12,6 +12,7 @@ const KEYS := {
 	"serve_3": KEY_3,
 	"serve_4": KEY_4,
 	"pause": KEY_P,
+	"mute": KEY_M,
 }
 
 

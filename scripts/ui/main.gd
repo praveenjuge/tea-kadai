@@ -3,12 +3,14 @@ extends Control
 ## Pass "-- --service" on the command line to skip straight to service.
 
 var state := KadaiState.new()
+var sound := SoundBoard.new()
 var _screen: Control
 
 
 func _ready() -> void:
 	Controls.setup()
 	theme = Style.make_theme()
+	add_child(sound)
 	_fit_window()
 	if "--service" in OS.get_cmdline_user_args():
 		_show_service()
@@ -36,6 +38,12 @@ func _fit_window() -> void:
 	DisplayServer.window_set_position(usable.position + (usable.size - window_size) / 2)
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("mute"):
+		sound.toggle_mute()
+		get_viewport().set_input_as_handled()
+
+
 func _swap(next: Control) -> void:
 	if _screen != null:
 		_screen.queue_free()
@@ -48,18 +56,21 @@ func _show_morning() -> void:
 	var screen := MorningScreen.new(state)
 	screen.open_requested.connect(_show_service)
 	_swap(screen)
+	sound.set_scene("morning")
 
 
 func _show_service() -> void:
-	var screen := ServiceScreen.new(state)
+	var screen := ServiceScreen.new(state, sound)
 	screen.day_finished.connect(_show_night)
 	_swap(screen)
+	sound.set_scene("service")
 
 
 func _show_night() -> void:
 	var screen := NightScreen.new(state)
 	screen.next_requested.connect(_on_next_day)
 	_swap(screen)
+	sound.set_scene("night")
 
 
 func _on_next_day() -> void:

@@ -13,6 +13,10 @@ signal customer_arrived(seat: int)
 signal customer_left(seat: int, customer: Dictionary, outcome: String)
 signal message(text: String)
 signal day_over
+## Something worth a sound or a flourish happened: "tea_filling",
+## "poured_perfect", "poured_good", "poured_flat", "spilled", "vadai_drop",
+## "vadai_golden", "vadai_lifted", "vadai_burnt", "arrive", "grumble", "paid".
+signal happened(event: String)
 
 const SUPPLY_CHECK_SECONDS := 1.0
 
@@ -71,6 +75,7 @@ func tea_press() -> void:
 				message.emit("Out of %s! Buy more tomorrow." % state.missing_for("tea").to_lower())
 			else:
 				tea.start(rng)
+				happened.emit("tea_filling")
 		TeaStation.Stage.READY:
 			tea.begin_pour()
 
@@ -152,12 +157,14 @@ func _fry_drop() -> void:
 	for i in amount:
 		state.use_recipe("vadai")
 	fryer.drop(amount)
+	happened.emit("vadai_drop")
 	_golden_told = false
 
 
 func _fry_take() -> void:
 	var batch := fryer.take()
 	var amount: int = batch["count"]
+	happened.emit("vadai_burnt" if batch["doneness"] == Fryer.Doneness.BURNT else "vadai_lifted")
 	match batch["doneness"]:
 		Fryer.Doneness.BURNT:
 			state.today["wasted"] += amount
@@ -175,6 +182,7 @@ func _fry_take() -> void:
 func _update_fryer_cue() -> void:
 	if not _golden_told and fryer.doneness() == Fryer.Doneness.GOLDEN:
 		_golden_told = true
+		happened.emit("vadai_golden")
 		message.emit("The vadai are golden. Lift them out!")
 
 
@@ -206,6 +214,7 @@ func _finish_customer(seat: int) -> void:
 	customer["mood"] = avg
 	seats[seat] = null
 	customer_left.emit(seat, customer, "served")
+	happened.emit("paid")
 
 
 func _update_patience(delta: float) -> void:
@@ -215,6 +224,7 @@ func _update_patience(delta: float) -> void:
 		customer["patience"] = maxf(0.0, customer["patience"] - delta)
 		if customer["patience"] <= 0.0:
 			customer["grumpy"] = true
+			happened.emit("grumble")
 			state.today["waited_long"] += 1
 
 
@@ -309,6 +319,7 @@ func _arrive(type_id: String) -> void:
 		"quality_n": 0,
 	}
 	customer_arrived.emit(seat)
+	happened.emit("arrive")
 
 
 ## Above the usual price, each customer may decide it's not worth it.
@@ -336,6 +347,14 @@ func _pick_weighted(weights: Dictionary) -> String:
 
 func _on_tea_poured(quality: float, label: String) -> void:
 	ready["tea"].append(quality)
+	if quality >= 1.0:
+		happened.emit("poured_perfect")
+	elif quality >= 0.75:
+		happened.emit("poured_good")
+	elif quality >= 0.5:
+		happened.emit("poured_flat")
+	else:
+		happened.emit("spilled")
 	message.emit(label)
 
 

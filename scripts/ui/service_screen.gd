@@ -10,6 +10,7 @@ const CLOSE_DELAY := 2.5
 
 var _state: KadaiState
 var _service: Service
+var _sound: SoundBoard
 var _street: StreetView
 var _tea_panel: TeaPanel
 var _fryer_panel: FryerPanel
@@ -24,8 +25,9 @@ var _pause_cover: ColorRect
 var _paused := false
 
 
-func _init(state: KadaiState) -> void:
+func _init(state: KadaiState, sound: SoundBoard) -> void:
 	_state = state
+	_sound = sound
 	_service = Service.new(state)
 
 
@@ -89,6 +91,7 @@ func _ready() -> void:
 	_service.customer_arrived.connect(_street.on_arrived)
 	_service.customer_left.connect(_street.on_left)
 	_service.day_over.connect(_on_day_over)
+	_service.happened.connect(_sound.on_event)
 	_show_toast("Day %d. The kadai is open!" % _state.day)
 
 
@@ -105,7 +108,7 @@ func _build_top_bar() -> Control:
 	row.add_child(_phase)
 	_money = Style.label("", Style.ACCENT)
 	row.add_child(_money)
-	row.add_child(Style.label("%s pause" % Controls.hint("pause"), Style.MUTED))
+	row.add_child(Style.label("%s pause · %s sound" % [Controls.hint("pause"), Controls.hint("mute")], Style.MUTED))
 	return bar
 
 
@@ -116,6 +119,7 @@ func _process(delta: float) -> void:
 	_phase.text = _service.clock.phase()["name"]
 	var earned := int(_state.today["revenue"]) + int(_state.today["tips"])
 	_money.text = "%s today · %s" % [Style.rupees(earned), Style.rupees(_state.money)]
+	_update_sound_loops()
 	_tea_panel.refresh()
 	_fryer_panel.refresh()
 	_tray_panel.refresh()
@@ -123,6 +127,16 @@ func _process(delta: float) -> void:
 		_hint.visible = false
 	_toast_left = maxf(0.0, _toast_left - delta)
 	_toast.modulate.a = clampf(_toast_left / 0.5, 0.0, 1.0)
+
+
+func _update_sound_loops() -> void:
+	var tea := _service.tea
+	var pouring := tea.stage == TeaStation.Stage.POURING and not _paused
+	_sound.set_loop("pour_loop", 1.0 if pouring else 0.0, 0.85 + tea.pour_height * 0.5)
+	var frying := not _service.fryer.is_empty() and not _paused and not _service.closed
+	_sound.set_loop("sizzle_loop", 1.0 if frying else 0.0)
+	_sound.set_loop("street_loop", 0.0 if _paused else 1.0)
+	_sound.set_time_of_day(_service.clock.minutes())
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -17,6 +17,7 @@ func _init() -> void:
 	_test_serving()
 	_test_nobody_walks_out()
 	_test_running_out()
+	_test_sounds_exist()
 	_test_bot_plays_a_full_day()
 	if _failures == 0:
 		print("All core checks passed.")
@@ -170,6 +171,17 @@ func _test_running_out() -> void:
 	_check(service.seats[0] != null and not service.seats[0]["order"].has("bun"), "customer skips what's sold out")
 	_check(service.seats[1] == null and int(state.today["out_of_stock"]) == 1,
 		"customer leaves if nothing they want is left")
+
+
+## Every sound the game refers to has a file, so swapping in real recordings
+## can't silently break anything.
+func _test_sounds_exist() -> void:
+	for sound_name in SoundBoard.VOLUME:
+		_check(ResourceLoader.exists(SoundBoard.DIR + sound_name + ".wav"), "sound file exists: " + sound_name)
+	for event in SoundBoard.EVENTS:
+		_check(SoundBoard.VOLUME.has(SoundBoard.EVENTS[event]), "event %s plays a known sound" % event)
+	for loop_name in SoundBoard.LOOP_FADE:
+		_check(SoundBoard.VOLUME.has(loop_name), "loop %s has a volume" % loop_name)
 
 
 ## A simple bot plays a whole day. Checks that the loop runs to the end and a

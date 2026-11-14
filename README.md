@@ -39,6 +39,16 @@ The game is mouse first. Keys are optional shortcuts.
 | Fry a batch of 4 vadai, then lift them out when golden | Fry button, or click the kadai | F |
 | Serve a customer | Click them or their bubble | 1 to 4 |
 | Pause | | P |
+| Sound on/off | | M |
+
+## Sound
+
+All sounds are placeholders synthesized by `tools/make_sounds.gd` into `assets/sounds/`. To replace one, drop in a real recording with the same file name. To regenerate them:
+
+```bash
+godot --headless --path . -s tools/make_sounds.gd
+godot --headless --path . --import
+```
 
 All input goes through named actions in `scripts/core/controls.gd`, so touch and controller support can be added there later.
 
@@ -58,7 +68,9 @@ godot --path . -s tests/test_play.gd
 ```
 scripts/data/catalog.gd     All tunable numbers: menu, market, customers, day phases
 scripts/core/               Game rules, no drawing: state, clock, tea, fryer, service, controls
-scripts/ui/                 Screens and placeholder art drawn in code
+scripts/ui/                 Screens, placeholder art drawn in code, and the sound board
+assets/sounds/              Sound effects, ambience and music (placeholders for now)
+tools/make_sounds.gd        Synthesizes the placeholder sounds
 tests/                      Headless rule checks and an input-driven play test
 docs/PLAN.md                The game plan
 ```

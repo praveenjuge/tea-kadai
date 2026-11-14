@@ -172,7 +172,7 @@ After the calm-down pass.
 In order:
 
 1. **Calm-down pass:** the decisions above, bigger bubbles, a simpler bottom panel, and a window that isn't tiny on Retina screens.
-2. **Sound:** pour splash, oil sizzle, coins, crows, auto horns, and a gentle music loop that changes with the time of day.
+2. **Sound (first pass done):** synthesized placeholders for the pour, fill, perfect pour, oil sizzle, vadai chime, coins, grumbles, crows, auto horns, bicycle bells, street rumble, and day and night music in Mohanam with a tanpura drone. Real recordings or a composer can replace the files later.
 3. **First regular:** one auto driver with a name, a usual order ("strong, less sugar"), and a few lines of story over the week.
 4. **Save + Mac build:** days save between sessions, plus a double-clickable `.app`.
 5. **Pixel art pass:** sprites for people, the stall, and props, replacing the drawn shapes. Customers get faces and a bit of personality (a wave, a sip, a nod).
