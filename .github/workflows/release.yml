@@ -240,6 +240,18 @@ jobs:
             build/TeaKadai.pck build/version.json
           gh release edit "$tag" --draft=false --latest
 
+      - name: Keep only the newest releases
+        if: env.RELEASING == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 200 --json tagName,createdAt,isDraft \
+            --jq "[.[] | select(.isDraft | not)] | sort_by(.createdAt) | reverse | .[${KEEP_RELEASES}:] | .[].tagName" |
+            while read -r old; do
+              echo "Removing $old"
+              gh release delete "$old" --cleanup-tag --yes
+            done
+
       - name: Upload to itch.io
         if: env.ITCH == 'true'
         env:
@@ -259,15 +271,3 @@ jobs:
           for channel in mac windows linux; do
             /tmp/butler/butler push "build/itch/$channel" "$ITCH_GAME:$channel" --userversion "$NEXT"
           done
-
-      - name: Keep only the newest releases
-        if: env.RELEASING == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release list --limit 200 --json tagName,createdAt,isDraft \
-            --jq "[.[] | select(.isDraft | not)] | sort_by(.createdAt) | reverse | .[${KEEP_RELEASES}:] | .[].tagName" |
-            while read -r old; do
-              echo "Removing $old"
-              gh release delete "$old" --cleanup-tag --yes
-            done
