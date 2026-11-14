@@ -1,0 +1,14 @@
+{
+  // The tea-kadai.praveenjuge.com website: static files only, no Worker code.
+  // Cloudflare Workers Builds deploys this on every push to main that touches website/.
+  "$schema": "https://unpkg.com/wrangler@4.162.0/config-schema.json",
+  "name": "tea-kadai",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./public"
+  },
+  "routes": [
+    { "pattern": "tea-kadai.praveenjuge.com", "custom_domain": true }
+  ],
+  "workers_dev": false
+}

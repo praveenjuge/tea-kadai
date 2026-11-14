@@ -133,6 +133,17 @@ tools/make_sounds.gd        Synthesizes the placeholder sounds
 tests/                      Headless rule checks and an input-driven play test
 docs/PLAN.md                The game plan
 .github/workflows/          Builds and releases on every push to main
+website/                    The download site, deployed by Cloudflare Workers
+```
+
+## Website
+
+[tea-kadai.praveenjuge.com](https://tea-kadai.praveenjuge.com) is the plain static site in `website/public/`. It runs on Cloudflare Workers (static assets only), and Cloudflare's Git integration deploys it on every push to `main` that touches `website/`. Website-only pushes don't make a new game release. The download buttons always point at the latest release.
+
+Preview it locally:
+
+```bash
+cd website && npx wrangler dev
 ```
 
 ## Licence

@@ -3,12 +3,15 @@ name: Build and release
 # Every push to main builds macOS, Windows and Linux and publishes them as the
 # next patch release (v0.1.0, v0.1.1, ...). If a newer push lands while an
 # older one is still building, the older run is cancelled: the latest wins.
-# Pull requests build and test, without releasing.
+# Pull requests build and test, without releasing. Pushes that only change the
+# website (deployed by Cloudflare) don't make a new release.
 
 on:
   push:
     branches: [main]
+    paths-ignore: ["website/**"]
   pull_request:
+    paths-ignore: ["website/**"]
   workflow_dispatch:
 
 concurrency:
