@@ -74,9 +74,11 @@ All input goes through named actions in `scripts/core/controls.gd`, so touch and
 godot --headless --path . --import
 godot --headless --path . -s tests/test_core.gd
 godot --path . -s tests/test_play.gd
+godot --path . -s tests/test_week.gd
 ```
 
-- `test_core.gd` checks the rules (clock, market, pour, fryer, serving) and has a bot play a whole day.
+- `test_core.gd` checks the rules and has a careful bot play two weeks, printing each day so the pacing can be judged.
+- `test_week.gd` is a bug sweep: it plays nine days of the real game at high speed, through the week-1 finale and Murugan's first day.
 - `test_play.gd` plays the real game through mouse and keyboard events: title, market, service, pause menu, Karthik's visit, night, the next morning, and quitting to the title. It opens a window and uses its own save file. Add `--write-movie play.avi --fixed-fps 30` to record it.
 
 ## Layout

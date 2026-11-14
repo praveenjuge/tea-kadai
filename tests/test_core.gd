@@ -19,6 +19,7 @@ func _init() -> void:
 	_test_running_out()
 	_test_sounds_exist()
 	_test_karthik()
+	_test_murugan()
 	_test_upgrades_and_saving()
 	_test_rain_is_fixed_per_day()
 	_test_levels_and_menu()
@@ -26,6 +27,7 @@ func _init() -> void:
 	_test_bajji()
 	_test_first_day_is_stocked()
 	_test_bot_plays_a_full_day()
+	_test_two_weeks()
 	if _failures == 0:
 		print("All core checks passed.")
 	else:
@@ -158,14 +160,19 @@ func _test_nobody_walks_out() -> void:
 	var state := KadaiState.new()
 	var service := Service.new(state, 9)
 	service.seats[0] = _customer({"tea": 1}, 1.0)
-	for i in 200:
+	for i in 60:
 		service._update_patience(0.5)
-	_check(service.seats[0] != null, "a customer who waits too long stays")
+	_check(service.seats[0] != null, "a customer who waits too long stays a good while")
 	_check(service.seats[0]["grumpy"] and int(state.today["waited_long"]) == 1, "they grumble instead")
 	var money := state.money
 	service.ready["tea"].append(1.0)
 	service.serve(0)
 	_check(state.money == money + 12, "a grumpy customer still pays, but doesn't tip")
+	service.seats[1] = _customer({"filter_coffee": 1}, 1.0)
+	for i in 200:
+		service._update_patience(0.5)
+	_check(service.seats[1] == null and int(state.today["gave_up"]) == 1,
+		"an order nobody makes doesn't block the counter forever")
 
 
 func _test_running_out() -> void:
@@ -194,10 +201,11 @@ func _test_sounds_exist() -> void:
 ## Runs a service until Karthik is at the counter and returns his seat.
 func _bring_karthik(service: Service) -> int:
 	for i in 20000:
-		if service.regular.is_here():
-			return service.regular.seat
+		var karthik := service.regular_visit("karthik")
+		if karthik.is_here():
+			return karthik.seat
 		service.clock.advance(0.1)
-		service.regular.update(0.1)
+		karthik.update(0.1)
 	return -1
 
 
@@ -213,14 +221,14 @@ func _test_karthik() -> void:
 	var seat := _bring_karthik(service)
 	_check(seat >= 0, "Karthik arrives on day 2")
 	_check(lines.size() == 1, "he says hello when he arrives")
-	service.regular.update(RegularVisit.ASK_AFTER + 0.1)
+	service.regular_visit("karthik").update(RegularVisit.ASK_AFTER + 0.1)
 	_check(questions.size() == 1 and questions[0][1].size() == 2, "he asks a question with two answers")
 	service.answer(seat, 0)
 	_check(int(state.regular("karthik")["friendship"]) == 8, "answering \"Study, da!\" adds 8 friendship")
 	service.ready["tea"].append(1.0)
 	state.stock["bun"] = 5
 	service.serve(seat)
-	_check(service.regular.done and state.today["met"].has("karthik"), "serving him finishes his visit")
+	_check(service.regular_visit("karthik").done and state.today["met"].has("karthik"), "serving him finishes his visit")
 	_check(int(state.regular("karthik")["friendship"]) == 8 + RegularVisit.SERVED_GAIN + RegularVisit.PERFECT_GAIN,
 		"a perfect tea for him adds more friendship")
 
@@ -232,13 +240,37 @@ func _test_karthik() -> void:
 	service = Service.new(state, 6)
 	seat = _bring_karthik(service)
 	_check(service.seats[seat]["usual_hidden"], "on day 3 he just asks for \"the usual\"")
-	service.regular.update(RegularVisit.WAIT_LINE_AFTER + 0.1)
+	service.regular_visit("karthik").update(RegularVisit.WAIT_LINE_AFTER + 0.1)
 	_check(state.menu().has("ginger_tea") and int(state.stock["ginger"]) >= 20, "he teaches ginger tea and brings ginger")
 	var money := state.money
 	service.ready["tea"].append(1.0)
 	service.serve(seat)
 	_check(state.money - money >= 12 + 15 + RegularVisit.REMEMBERED_TIP, "remembering his usual earns a bonus tip")
 	_check(Story.hook("karthik", 3) != "", "each story day has a night hook")
+
+
+func _test_murugan() -> void:
+	var week1 := KadaiState.new()
+	week1.day = 5
+	_check(Service.new(week1, 1).regular_visit("murugan") == null, "Murugan isn't around in week 1")
+	var state := KadaiState.new()
+	state.day = 10
+	state.stock["batter"] = 10
+	var service := Service.new(state, 2)
+	_check(service.regulars.size() == 2, "both regulars come by in week 2")
+	var murugan := service.regular_visit("murugan")
+	for i in 20000:
+		if murugan.is_here():
+			break
+		service.clock.advance(0.1)
+		murugan.update(0.1)
+	_check(murugan.is_here(), "Murugan comes in the morning")
+	_check(service.seats[murugan.seat]["usual_hidden"], "from day 10 Murugan just orders the usual")
+	service.ready["tea"].append(1.0)
+	service.ready["vadai"].append(1.0)
+	service.serve(murugan.seat)
+	_check(murugan.done and int(state.regular("murugan")["friendship"]) > 0, "serving Murugan builds friendship")
+	_check(Story.hook("murugan", 14) != "", "Murugan's week ends with a hook")
 
 
 func _test_upgrades_and_saving() -> void:
@@ -349,6 +381,53 @@ func _test_bot_plays_a_full_day() -> void:
 		state.today["no_seat"], state.profit_today()])
 
 
+## A careful bot plays two full weeks: restocks each morning, serves all day,
+## and buys upgrades at night. Prints each day so the pacing can be judged,
+## and checks the week feels winnable.
+func _test_two_weeks() -> void:
+	var state := KadaiState.new()
+	print("day  served  lost  perfect  takings  money  level  goals  upgrades")
+	var level_on_day_7 := 0
+	var first_upgrade_day := 0
+	for day in 14:
+		_bot_morning(state)
+		var service := Service.new(state, 100 + day)
+		var ended := [false]
+		service.day_over.connect(func() -> void: ended[0] = true)
+		var guard := 0
+		while not ended[0] and guard < 20000:
+			guard += 1
+			_bot_turn(service)
+			service.update(0.1)
+		state.close_day()
+		for id in Catalog.UPGRADE_ORDER:
+			if int(Catalog.UPGRADES[id]["level"]) <= state.level() and state.money - int(Catalog.UPGRADES[id]["cost"]) >= 250:
+				if state.buy_upgrade(id) and first_upgrade_day == 0:
+					first_upgrade_day = state.day
+		var done: int = state.week["done"].size()
+		print("%3d  %6d  %4d  %7d  %7d  %5d  %5d  %5d  %s" % [state.day, state.today["served"], state.lost_today(),
+			state.today["perfect"], int(state.today["revenue"]) + int(state.today["tips"]), state.money, state.level(),
+			done, ",".join(state.upgrades)])
+		_check(state.money >= 0, "money never goes negative (day %d)" % state.day)
+		if state.day == 7:
+			level_on_day_7 = state.level()
+			_check(done >= 2, "a careful player reaches at least two week-1 goals, got %d" % done)
+		state.next_day()
+	_check(level_on_day_7 >= 3, "a careful player reaches level 3 by day 7, got %d" % level_on_day_7)
+	_check(first_upgrade_day > 0 and first_upgrade_day <= 4, "the first upgrade is affordable by day 4, got day %d" % first_upgrade_day)
+
+
+## Morning restock: top up anything that can make fewer than a day's worth.
+func _bot_morning(state: KadaiState) -> void:
+	for item in state.menu():
+		var recipe: Dictionary = Catalog.RECIPES[item]
+		for stock_id in recipe:
+			var guard := 0
+			while state.how_many(item) < 24 and int(state.stock[stock_id]) < 24 and state.can_afford(stock_id) and guard < 5:
+				guard += 1
+				state.buy(stock_id)
+
+
 func _bot_turn(service: Service) -> void:
 	var tea := service.tea
 	if tea.stage == TeaStation.Stage.POURING:
@@ -356,11 +435,42 @@ func _bot_turn(service: Service) -> void:
 			service.tea_release()
 	elif tea.can_pour():
 		service.tea_press()
-	elif tea.stage == TeaStation.Stage.EMPTY and service.ready_count("tea") < 3 and service.state.can_make("tea"):
-		service.tea_press()
+	elif tea.stage == TeaStation.Stage.EMPTY:
+		# Make whichever drink the waiting customers need most.
+		var wanted := _most_wanted(service, Catalog.GLASSES)
+		if wanted != "" and service.state.can_make(wanted):
+			service.set_tea_kind(wanted)
+			service.tea_press()
 	var fry := service.fryer.doneness()
-	if fry == Fryer.Doneness.GOLDEN or (fry == Fryer.Doneness.EMPTY and service.ready_count("vadai") < 2):
+	if fry == Fryer.Doneness.GOLDEN:
 		service.fry_press()
+	elif fry == Fryer.Doneness.EMPTY:
+		var wanted := _most_wanted(service, Catalog.FRIED)
+		if wanted != "" and service.state.can_make(wanted):
+			service.set_fry_kind(wanted)
+			service.fry_press()
 	for seat in service.seats.size():
+		var customer = service.seats[seat]
+		if customer != null and customer.get("usual_hidden", false):
+			customer["usual_hidden"] = false
 		if service.can_fill(seat):
 			service.serve(seat)
+
+
+## The made item waiting customers are short of the most, or "" if none.
+func _most_wanted(service: Service, items: Array[String]) -> String:
+	var best := ""
+	var best_need := 0
+	for item in items:
+		if not service.state.menu().has(item):
+			continue
+		var need := -service.ready_count(item)
+		for customer in service.seats:
+			if customer != null:
+				need += int(customer["order"].get(item, 0))
+		if item == "tea" or item == "vadai":
+			need += 1
+		if need > best_need:
+			best = item
+			best_need = need
+	return best

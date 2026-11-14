@@ -9,7 +9,7 @@ extends RefCounted
 ## they skip it, and leave only if nothing they wanted is left.
 
 signal customer_arrived(seat: int)
-## outcome is "served", "out_of_stock", or "closed".
+## outcome is "served", "out_of_stock", "gave_up", or "closed".
 signal customer_left(seat: int, customer: Dictionary, outcome: String)
 signal message(text: String)
 signal day_over
@@ -46,8 +46,8 @@ var fry_kind := "vadai"
 var streak := 0
 ## Today's shower as (start, end) kadai minutes, or ZERO.
 var rain := Vector2.ZERO
-## Today's regular, if any.
-var regular: RegularVisit
+## Today's regulars who are around this week of the story.
+var regulars: Array[RegularVisit] = []
 ## Tips are doubled for everyone (a regular is celebrating).
 var treat := false
 var _ambient := false
@@ -75,7 +75,9 @@ func _init(kadai: KadaiState, seed_value: int = -1, ambient: bool = false) -> vo
 	rain = Catalog.rain_for_day(state.day)
 	tea.poured.connect(_on_tea_poured)
 	if not ambient:
-		regular = RegularVisit.new(self, "karthik")
+		for id in Story.REGULAR_ORDER:
+			if state.day >= Story.first_day(id):
+				regulars.append(RegularVisit.new(self, id))
 
 
 func update(delta: float) -> void:
@@ -93,7 +95,8 @@ func update(delta: float) -> void:
 		_drop_unavailable()
 	if not _ambient:
 		_update_arrivals(delta)
-		regular.update(delta)
+		for visit in regulars:
+			visit.update(delta)
 	if clock.is_over():
 		_close()
 
@@ -183,8 +186,17 @@ func serve(seat: int) -> void:
 
 ## The player answers a regular's question.
 func answer(seat: int, index: int) -> void:
-	if regular != null and regular.seat == seat:
-		regular.answer(index)
+	for visit in regulars:
+		if visit.seat == seat and visit.is_here():
+			visit.answer(index)
+
+
+## Today's visit for one regular, or null if they aren't part of today.
+func regular_visit(id: String) -> RegularVisit:
+	for visit in regulars:
+		if visit.id == id:
+			return visit
+	return null
 
 
 # --- Queries for screens --------------------------------------------------
@@ -265,7 +277,7 @@ func seat_customer(seat: int, type_id: String, order: Dictionary, patience: floa
 func arrive(type_id: String) -> void:
 	var kind: Dictionary = Catalog.CUSTOMERS[type_id]
 	var seat := seats.find(null)
-	if regular != null and regular.waiting:
+	if regulars.any(func(visit: RegularVisit) -> bool: return visit.waiting):
 		seat = -1
 	if seat < 0:
 		state.today["no_seat"] += 1
@@ -402,10 +414,10 @@ func _finish_customer(seat: int) -> void:
 		if state.has_upgrade("paint"):
 			multiplier *= Catalog.PAINT_TIPS
 		if customer.has("regular"):
-			multiplier *= regular.tip_multiplier()
+			multiplier *= regular_visit(customer["regular"]).tip_multiplier()
 		tip = roundi(float(kind["tip"]) * avg * (0.5 + calm) * multiplier)
-	if customer.has("regular") and regular != null:
-		tip += regular.on_served(seat, customer, avg)
+	if customer.has("regular"):
+		tip += regular_visit(customer["regular"]).on_served(seat, customer, avg)
 	seats[seat] = null
 	state.record_tip(tip)
 	state.today["served"] += 1
@@ -436,16 +448,34 @@ func _reaction(customer: Dictionary, avg: float) -> String:
 
 
 func _update_patience(delta: float) -> void:
-	for customer in seats:
-		if customer == null or customer["grumpy"]:
+	for seat in seats.size():
+		var customer = seats[seat]
+		if customer == null:
+			continue
+		if customer["grumpy"]:
+			customer["grumble"] = float(customer.get("grumble", 0.0)) + delta
+			if customer["grumble"] >= Catalog.GRUMBLE_LIMIT:
+				_give_up(seat)
 			continue
 		customer["patience"] = maxf(0.0, customer["patience"] - delta)
 		if customer["patience"] <= 0.0:
 			customer["grumpy"] = true
 			state.today["waited_long"] += 1
 			happened.emit("grumble", 0)
-			if customer.has("regular") and regular != null:
-				regular.on_grumpy()
+			if customer.has("regular"):
+				regular_visit(customer["regular"]).on_grumpy()
+
+
+## A grumbling customer who has waited far too long leaves without paying.
+func _give_up(seat: int) -> void:
+	var customer: Dictionary = seats[seat]
+	state.today["gave_up"] += 1
+	if customer.has("regular"):
+		var visit := regular_visit(customer["regular"])
+		visit.on_grumpy()
+		visit.done = true
+	seats[seat] = null
+	customer_left.emit(seat, customer, "gave_up")
 
 
 ## Whether this item can still reach a customer today.

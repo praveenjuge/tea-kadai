@@ -137,8 +137,9 @@ func _start_new_game() -> void:
 
 
 func _show_morning() -> void:
+	var help := state.morning_help()
 	SaveGame.save(state)
-	var screen := MorningScreen.new(state)
+	var screen := MorningScreen.new(state, help)
 	screen.open_requested.connect(_show_service)
 	screen.prices_requested.connect(func() -> void:
 		open_overlay(MenuOverlay.prices(state)).closed.connect(screen.refresh))
@@ -165,11 +166,16 @@ func _on_service_menu(choice: String) -> void:
 
 
 func _show_night() -> void:
-	state.claim_goals()
+	state.close_day()
 	var screen := NightScreen.new(state, sound)
 	screen.next_requested.connect(_on_next_day)
 	_swap(screen)
 	sound.set_scene("night")
+	if state.is_week_end():
+		# Once the day's tally has counted up, celebrate the week.
+		get_tree().create_timer(3.2).timeout.connect(func() -> void:
+			if _screen == screen:
+				open_overlay(MenuOverlay.week_done(state, screen)))
 
 
 func _on_next_day() -> void:

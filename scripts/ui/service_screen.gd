@@ -214,9 +214,9 @@ func _on_happened(event: String, _amount: int) -> void:
 		"poured_perfect":
 			_effects.sparkle(_tea_panel.glass_point() - global_position)
 		"recipe":
-			_effects.banner("New recipe: ginger tea!", Style.GOOD)
+			_effects.banner("New recipe learned!", Style.GOOD)
 		"treat":
-			_effects.banner("Karthik passed! Double tips!", Style.GOOD)
+			_effects.banner("Celebration! Double tips today!", Style.GOOD)
 
 
 func _on_phase_started(phase: Dictionary) -> void:

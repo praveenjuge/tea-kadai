@@ -14,10 +14,13 @@ var _money: Label
 var _market: MarketScene
 var _hint: Label
 var _stock_note: Label
+## Money family sent this morning, if any.
+var _help := 0
 
 
-func _init(state: KadaiState) -> void:
+func _init(state: KadaiState, help: int = 0) -> void:
 	_state = state
+	_help = help
 
 
 func _ready() -> void:
@@ -125,6 +128,9 @@ func _build_paper() -> Control:
 	box.add_child(Style.paragraph(forecast, 210.0, Style.LINE.darkened(0.2)))
 	if _state.day == 1:
 		box.add_child(Style.paragraph("You're stocked for today. Just open the kadai!", 210.0, Style.INK))
+	if _help > 0:
+		box.add_child(Style.paragraph("Money was tight, so Amma sent %s to keep the kadai going." % Style.rupees(_help),
+			210.0, Style.BAD.darkened(0.2)))
 	return paper
 
 
@@ -197,9 +203,10 @@ func _draw_week(strip: Control) -> void:
 		var symbol := "cloud" if Catalog.rain_for_day(day) != Vector2.ZERO else "sun"
 		if day >= _state.day:
 			Style.draw_symbol(strip, symbol, box.position + Vector2(15, 38), 1.0)
-		var story: Dictionary = Story.visit("karthik", day)
-		if day >= _state.day and (story.get("lucky", false) or story.get("treat", false)):
-			Style.draw_symbol(strip, "star", box.position + Vector2(24, 18), 0.8)
+		for id in Story.REGULAR_ORDER:
+			var story: Dictionary = Story.visit(id, day)
+			if day >= _state.day and (story.get("lucky", false) or story.get("treat", false)):
+				Style.draw_symbol(strip, "star", box.position + Vector2(24, 18), 0.8)
 
 
 func _refresh() -> void:
@@ -208,11 +215,29 @@ func _refresh() -> void:
 	for item in _state.menu():
 		var have := _state.how_many(item)
 		if have < LOW_STOCK:
-			low.append("%s ×%d" % [Catalog.MENU[item]["name"].to_lower(), have])
+			# Name the ingredient that's holding it back, so it's clear what to buy.
+			var short := _limiting(item)
+			var text := "%s ×%d" % [Catalog.MENU[item]["name"].to_lower(), have]
+			if short != "" and Catalog.RECIPES[item].size() > 1:
+				text += " (needs %s)" % short.to_lower()
+			low.append(text)
 	_stock_note.text = "Stocked for the day." if low.is_empty() else "Running low: " + ", ".join(low)
 	_stock_note.add_theme_color_override("font_color", Style.GOOD if low.is_empty() else Style.WARN)
 	_market.queue_redraw()
 	_refresh_hint()
+
+
+## The stock item that runs out first for this menu item.
+func _limiting(item: String) -> String:
+	var recipe: Dictionary = Catalog.RECIPES[item]
+	var lowest := ""
+	var lowest_count := 1 << 30
+	for stock_id in recipe:
+		var count := int(_state.stock[stock_id]) / int(recipe[stock_id])
+		if count < lowest_count:
+			lowest = Catalog.MARKET[stock_id]["name"]
+			lowest_count = count
+	return lowest
 
 
 func _refresh_hint() -> void:

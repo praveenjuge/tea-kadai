@@ -181,7 +181,7 @@ func _service() -> void:
 
 	# Karthik comes on his way to college; keep playing until he's served.
 	guard = 0
-	while not service.regular.done and not service.closed and guard < 20000:
+	while not service.regular_visit("karthik").done and not service.closed and guard < 20000:
 		guard += 1
 		await _play_turn(screen, service)
 	_check(said[0] > 0, "Karthik says something in a speech bubble")

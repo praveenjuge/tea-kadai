@@ -178,6 +178,27 @@ static func prices(state: KadaiState) -> MenuOverlay:
 	return overlay
 
 
+## The end-of-week celebration: the week's card, a way to save it, and after
+## week 2 a thank-you for playing what's ready so far.
+static func week_done(state: KadaiState, host: Node) -> MenuOverlay:
+	var week := Catalog.week_of(state.day)
+	var overlay := MenuOverlay.new("Week %d at the kadai" % week, 340.0)
+	var data := ShareCard.for_week(state)
+	overlay.add(ShareCard.new(data))
+	if week == 2:
+		overlay.add(Style.paragraph("Thanks for playing! That's all the story for now. The kadai stays open, "
+			+ "so keep pouring as long as you like.", 320.0, Style.ACCENT))
+	var note := Style.label("", Style.GOOD)
+	overlay.add(note)
+	overlay.add_buttons([
+		Style.button("Save card to Desktop", func() -> void:
+			var path := await ShareCard.save_png(host, data, "Tea Kadai - Week %d.png" % week)
+			note.text = "Saved: " + path.get_file(), true),
+		Style.button("Keep going", overlay.close),
+	])
+	return overlay
+
+
 static func confirm(title: String, text: String, yes: String, no: String) -> MenuOverlay:
 	var overlay := MenuOverlay.new(title)
 	overlay.add(Style.paragraph(text, 300.0))

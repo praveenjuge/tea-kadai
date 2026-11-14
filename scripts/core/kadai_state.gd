@@ -40,13 +40,13 @@ func next_day() -> void:
 
 
 func _reset_week() -> void:
-	week = {"served": 0, "perfect": 0, "revenue": 0, "done": []}
+	week = {"served": 0, "perfect": 0, "revenue": 0, "tips": 0, "best_streak": 0, "stars": [], "done": []}
 
 
 func _reset_today() -> void:
 	today = {
 		"revenue": 0, "tips": 0, "spent": 0, "upgrades": 0,
-		"served": 0, "waited_long": 0, "out_of_stock": 0, "too_costly": 0, "no_seat": 0, "wasted": 0,
+		"served": 0, "waited_long": 0, "gave_up": 0, "out_of_stock": 0, "too_costly": 0, "no_seat": 0, "wasted": 0,
 		"perfect": 0, "best_streak": 0, "points": 0,
 		"sold": {}, "bought": {}, "met": [], "level_ups": [], "goals_done": [],
 	}
@@ -86,8 +86,10 @@ static func from_dict(data: Dictionary) -> KadaiState:
 	state.best_streak = int(data.get("best_streak", 0))
 	state.reputation = maxi(0, int(data.get("reputation", 0)))
 	var saved_week: Dictionary = data.get("week", {})
-	for key in ["served", "perfect", "revenue"]:
+	for key in ["served", "perfect", "revenue", "tips", "best_streak"]:
 		state.week[key] = int(saved_week.get(key, 0))
+	for stars in saved_week.get("stars", []):
+		state.week["stars"].append(int(stars))
 	for id in saved_week.get("done", []):
 		state.week["done"].append(str(id))
 	return state
@@ -139,6 +141,27 @@ func week_goals() -> Array[Dictionary]:
 		goal["value"] = int(week.get(goal["id"], 0))
 		goal["done"] = week["done"].has(goal["id"])
 	return goals
+
+
+## Wraps up the day for the night screen: pays out goals, and notes the
+## day's stars and best streak in the week's record.
+func close_day() -> void:
+	claim_goals()
+	week["stars"].append(stars_today())
+	week["best_streak"] = maxi(int(week.get("best_streak", 0)), int(today["best_streak"]))
+
+
+## A morning safety net: nearly broke and low on tea means Amma sends money.
+## Returns the amount sent, or 0.
+func morning_help() -> int:
+	if money >= Catalog.HELP_BELOW or how_many("tea") >= 10:
+		return 0
+	money += Catalog.HELP_AMOUNT
+	return Catalog.HELP_AMOUNT
+
+
+func is_week_end() -> bool:
+	return day % 7 == 0
 
 
 ## Pays out any goal reached since the last check. Returns the goals just done.
@@ -265,11 +288,12 @@ func record_sale(item: String) -> int:
 func record_tip(amount: int) -> void:
 	money += amount
 	today["tips"] += amount
+	week["tips"] = int(week.get("tips", 0)) + amount
 
 
 ## Lost customers today: waited too long, left over missing stock, or found no seat.
 func lost_today() -> int:
-	return int(today["waited_long"]) + int(today["out_of_stock"]) + int(today["no_seat"])
+	return int(today["waited_long"]) + int(today.get("gave_up", 0)) + int(today["out_of_stock"]) + int(today["no_seat"])
 
 
 ## One to three stars for the day.

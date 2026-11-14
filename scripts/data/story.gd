@@ -30,8 +30,14 @@ const REGULARS := {
 		"usual_from_day": 3,
 		## Seconds his usual order stays hidden before the bubble gives a hint.
 		"usual_hint_after": 12.0,
+		"usual_hint": "Tea and a bun, anna. Same as always!",
 		## Friendship needed for each unlock.
 		"big_tips_at": 30, "teach_at": 20, "friends_at": 40,
+		## The recipe he teaches once friendly enough, from this day, and the
+		## stock his amma sends along with it.
+		"teaches": "ginger_tea", "teach_from_day": 3, "teach_gift": {"ginger": 20},
+		"teach_line": "Anna, crush some ginger into the decoction. My amma's trick!",
+		"friend_type": "student",
 		"days": {
 			1: {
 				"minute": 430, "order": {"tea": 1, "bun": 1},
@@ -114,7 +120,95 @@ const REGULARS := {
 			],
 		},
 	},
+	"murugan": {
+		"name": "Murugan",
+		"about": "Auto driver, cricket mad. Rents his auto, dreams of owning one.",
+		"patience": 55.0, "tip": 3,
+		"shirt": Color("d9b44a"), "legs": Color("6b5a3a"), "hair": Color("1e1612"),
+		"skin": Color("6e4329"), "mustache": true,
+		"usual": {"tea": 1, "vadai": 1},
+		"usual_from_day": 10,
+		"usual_hint_after": 12.0,
+		"usual_hint": "Strong tea and one vadai, like always!",
+		"big_tips_at": 30, "friends_at": 40,
+		"friend_type": "auto_driver",
+		"days": {
+			8: {
+				"minute": 400, "order": {"tea": 1, "vadai": 1},
+				"arrive": "Vanakkam! Murugan, from the auto stand at the corner. One strong tea, less sugar.",
+				"wait": "Twelve years driving someone else's auto. One day, my own. You'll see.",
+				"served": "Good tea! I'll tell all the auto stand fellows.",
+				"hook": "Murugan rents his auto by the day. He's been saving for his own for years.",
+			},
+			9: {
+				"minute": 395, "order": {"tea": 1, "vadai": 1},
+				"arrive": "Anna! India batting first today!",
+				"ask": {
+					"q": "Three hundred runs today, anna? Yes or no?",
+					"options": [
+						{"text": "Easily!", "reply": "That's the spirit! Free ride to the beach if we win!", "friendship": 6},
+						{"text": "Pray first", "reply": "Ha! Correct. Prayer first, then runs.", "friendship": 8},
+					],
+				},
+				"served": "If we lose, I'm blaming the bowling. Never the tea.",
+				"hook": "Murugan's savings tin is almost full. He shakes it for luck every night.",
+			},
+			10: {
+				"minute": 405, "order": "usual",
+				"arrive": "The usual, anna. Rain or shine, autos run.",
+				"wait": "Tea first, then customers. That's my rule.",
+				"served": "Perfect. Now I can drive till lunch.",
+				"hook": "Murugan saw an auto for sale. Second-hand, green, a little dented. Perfect.",
+			},
+			11: {
+				"minute": 400, "order": "usual", "friends": 2,
+				"arrive": "Anna, the auto stand fellows. I told them, best tea in the area!",
+				"arrive_alone": "The usual, anna. My friends are still asleep, lazy fellows.",
+				"ask": {
+					"q": "Two thousand short for the auto. Should I take a loan?",
+					"options": [
+						{"text": "Save a bit longer", "reply": "You're right. Slow and steady, like my old auto.", "friendship": 8},
+						{"text": "Go for it!", "reply": "Bold! I'll think about it over one more tea.", "friendship": 5},
+					],
+				},
+				"served": "Extra hours this week. Every ride counts.",
+				"hook": "He's driving extra hours this week. His eyes are tired, but he's smiling.",
+			},
+			12: {
+				"minute": 390, "order": {"tea": 2},
+				"arrive": "Night shift, morning shift. Two teas, anna. Strong.",
+				"wait": "Just one more week of this. One more week.",
+				"served": "Tomorrow I go to see the auto again.",
+				"hook": "Tomorrow Murugan goes to buy the auto.",
+			},
+			13: {
+				"minute": 395, "order": {"tea": 1}, "lucky": true,
+				"arrive": "Today's the day, anna! Buying the auto! One lucky tea!",
+				"lucky_yes": "Look at that froth! Today is a good day.",
+				"lucky_no": "Hmm. It's fine. The auto doesn't care about froth.",
+				"hook": "Murugan signed the papers. Tomorrow he picks up his very own auto.",
+			},
+			14: {
+				"minute": 420, "order": "usual", "treat": true,
+				"arrive": "ANNA! MY OWN AUTO! Look outside! First ride is free for you, always!",
+				"wait": "Tea for everyone today. Murugan is paying!",
+				"served": "Same time tomorrow. In my own auto!",
+				"hook": "Murugan drives his own auto now. He parks it right outside your kadai.",
+			},
+		},
+		"later": {
+			"minute": 400, "order": "usual",
+			"lines": [
+				"My auto, my rules. Rule one: tea first.",
+				"Took a foreigner to the beach. He loved your tea story.",
+				"India won! I told you, prayer first!",
+				"Petrol up again. But tea is still the same price, no anna?",
+			],
+		},
+	},
 }
+## The order regulars appear in the game.
+const REGULAR_ORDER: Array[String] = ["karthik", "murugan"]
 
 
 ## Today's visit for a regular, or an empty Dictionary if they don't come.
@@ -123,7 +217,7 @@ static func visit(id: String, day: int) -> Dictionary:
 	var days: Dictionary = regular["days"]
 	if days.has(day):
 		return days[day]
-	if day > days.size():
+	if day > days.keys().max():
 		var later: Dictionary = regular["later"]
 		var lines: Array = later["lines"]
 		return {
@@ -131,6 +225,11 @@ static func visit(id: String, day: int) -> Dictionary:
 			"arrive": "The usual, anna!", "served": lines[day % lines.size()],
 		}
 	return {}
+
+
+## The first day a regular comes by.
+static func first_day(id: String) -> int:
+	return REGULARS[id]["days"].keys().min()
 
 
 ## The night screen's line about this regular after today.

@@ -106,6 +106,9 @@ func on_left(seat: int, customer: Dictionary, outcome: String) -> void:
 	if outcome == "served":
 		text = "%s +%s" % [customer.get("reaction", ""), Style.rupees(int(customer["bill"]) + int(customer.get("tip", 0)))]
 		color = Style.WARN if customer["grumpy"] else Style.GOOD
+	elif outcome == "gave_up":
+		text = "Forget it, I'm going!"
+		color = Style.BAD
 	elif outcome == "out_of_stock":
 		text = "Nothing left? Okay…"
 		color = Style.MUTED

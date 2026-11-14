@@ -63,6 +63,10 @@ const RECIPES := {
 }
 
 const START_MONEY := 300
+## You can't lose: if a morning starts with less than this and little tea
+## stock, family sends a little money so the kadai can open.
+const HELP_BELOW := 150
+const HELP_AMOUNT := 200
 ## Enough for a whole first day, so a new player can just open the kadai.
 const START_STOCK := {
 	"milk": 24, "tea_powder": 25, "sugar": 40, "ginger": 0, "lemon": 0, "coffee_powder": 0,
@@ -163,6 +167,9 @@ static func pace_for_day(day: int) -> float:
 	return DAY_PACE[clampi(day - 1, 0, DAY_PACE.size() - 1)]
 
 const SEATS := 4
+## Seconds a grumbling customer keeps waiting before they give up and leave
+## without paying, so an order you can't make never blocks the counter.
+const GRUMBLE_LIMIT := 45.0
 ## How many glasses fit on the tray, and how many fried snacks on the plate.
 ## The bigger counter raises both.
 const TRAY_GLASSES := 6
@@ -172,7 +179,7 @@ const BIG_COUNTER_PLATE := 12
 
 ## Reputation: the kadai level rises with happy customers. These are the
 ## points needed for each level, starting at level 1.
-const LEVEL_POINTS: Array[int] = [0, 30, 90, 180, 300, 450, 650, 900]
+const LEVEL_POINTS: Array[int] = [0, 40, 140, 260, 420, 600, 820, 1100]
 const POINTS_SERVED := 2
 const POINTS_PERFECT := 1
 const POINTS_GRUMPY := 1
@@ -181,9 +188,9 @@ const POINTS_GOAL := 15
 
 ## Small goals for each week. Targets grow a little every week.
 const WEEK_GOALS := [
-	{"id": "served", "text": "Serve %s customers", "base": 100, "growth": 30},
-	{"id": "perfect", "text": "Pour %s perfect teas", "base": 40, "growth": 15},
-	{"id": "revenue", "text": "Take %s in sales", "base": 2000, "growth": 600, "money": true},
+	{"id": "served", "text": "Serve %s customers", "base": 120, "growth": 30},
+	{"id": "perfect", "text": "Pour %s perfect teas", "base": 50, "growth": 15},
+	{"id": "revenue", "text": "Take %s in sales", "base": 2500, "growth": 600, "money": true},
 ]
 const GOAL_REWARD := 100
 
@@ -192,12 +199,12 @@ const GOAL_REWARD := 100
 const UPGRADES := {
 	"bench": {"name": "Bench", "cost": 350, "level": 1, "about": "Room for one more customer."},
 	"pot": {"name": "Bigger milk pot", "cost": 450, "level": 1, "about": "Glasses fill twice as fast."},
-	"paint": {"name": "Fresh paint & sign", "cost": 300, "level": 2, "about": "A smart kadai earns bigger tips."},
-	"plants": {"name": "Plants & string lights", "cost": 400, "level": 3, "about": "Customers wait more happily."},
-	"fan": {"name": "Table fan", "cost": 600, "level": 3, "about": "Customers stay patient much longer."},
-	"radio": {"name": "Radio & posters", "cost": 500, "level": 4, "about": "Good vibes: more reputation per customer."},
-	"counter": {"name": "Bigger counter", "cost": 800, "level": 5, "about": "Room for 8 glasses and 12 fries."},
-	"sign": {"name": "Lit signboard", "cost": 900, "level": 5, "about": "More customers in the evening."},
+	"paint": {"name": "Fresh paint & sign", "cost": 400, "level": 2, "about": "A smart kadai earns bigger tips."},
+	"plants": {"name": "Plants & string lights", "cost": 500, "level": 3, "about": "Customers wait more happily."},
+	"fan": {"name": "Table fan", "cost": 700, "level": 3, "about": "Customers stay patient much longer."},
+	"radio": {"name": "Radio & posters", "cost": 800, "level": 4, "about": "Good vibes: more reputation per customer."},
+	"counter": {"name": "Bigger counter", "cost": 1100, "level": 5, "about": "Room for 8 glasses and 12 fries."},
+	"sign": {"name": "Lit signboard", "cost": 1400, "level": 5, "about": "More customers in the evening."},
 }
 const UPGRADE_ORDER: Array[String] = ["bench", "pot", "paint", "plants", "fan", "radio", "counter", "sign"]
 const FAN_PATIENCE := 1.5

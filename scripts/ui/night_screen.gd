@@ -20,6 +20,7 @@ var _stars_shown := 0
 var _time := 0.0
 var _money: Label
 var _upgrades := {}
+var _saved: Label
 
 
 func _init(state: KadaiState, sound: SoundBoard) -> void:
@@ -44,16 +45,23 @@ func _ready() -> void:
 	right.size_flags_horizontal = SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 6)
 	columns.add_child(right)
-	var cards: Array[Control] = [_build_level(), _build_goals(), _build_regular(), _build_upgrades()]
+	var cards: Array[Control] = [_build_level(), _build_goals(), _build_regulars(), _build_upgrades()]
 	for i in cards.size():
 		right.add_child(cards[i])
 		Style.pop_in(cards[i], 0.15 + i * 0.12)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = SIZE_EXPAND_FILL
 	right.add_child(spacer)
-	var next := Style.button("Plan tomorrow →", func() -> void: next_requested.emit())
-	next.size_flags_horizontal = SIZE_SHRINK_END
-	right.add_child(next)
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 6)
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	_saved = Style.label("", Style.GOOD)
+	_saved.size_flags_horizontal = SIZE_EXPAND_FILL
+	_saved.clip_text = true
+	footer.add_child(_saved)
+	footer.add_child(Style.button("Save day card", _save_card, true))
+	footer.add_child(Style.button("Plan tomorrow →", func() -> void: next_requested.emit()))
+	right.add_child(footer)
 	_refresh_upgrades()
 
 
@@ -155,31 +163,54 @@ func _build_goals() -> Control:
 	return panel
 
 
-func _build_regular() -> Control:
+## A paper card with a line for each regular in the story so far: their
+## face, friendship hearts, and what's next for them.
+func _build_regulars() -> Control:
 	var panel := PanelContainer.new()
 	panel.theme_type_variation = "PaperPanel"
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 3)
+	box.add_theme_constant_override("separation", 4)
 	panel.add_child(box)
-	var info: Dictionary = Story.REGULARS["karthik"]
+	for id in Story.REGULAR_ORDER:
+		if _state.day < Story.first_day(id):
+			continue
+		var line := Story.hook(id, _state.day)
+		var met: bool = _state.today["met"].has(id)
+		if line == "" and met:
+			line = "Dropped by for the usual."
+		elif not met:
+			line = "%s didn't make it to the counter today." % Story.REGULARS[id]["name"]
+		if line != "":
+			box.add_child(_regular_row(id, line))
+	return panel
+
+
+func _regular_row(id: String, line: String) -> Control:
+	var info: Dictionary = Story.REGULARS[id]
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var face := Control.new()
+	face.custom_minimum_size = Vector2(22, 22)
+	face.draw.connect(func() -> void: Style.draw_portrait(face, info, Rect2(Vector2.ZERO, Vector2(22, 22))))
+	row.add_child(face)
+	var text := VBoxContainer.new()
+	text.add_theme_constant_override("separation", 0)
+	text.size_flags_horizontal = SIZE_EXPAND_FILL
+	row.add_child(text)
 	var head := HBoxContainer.new()
 	head.add_child(Style.label(info["name"], Style.INK))
 	var hearts := Control.new()
 	hearts.custom_minimum_size = Vector2(70, 12)
 	hearts.size_flags_horizontal = SIZE_EXPAND_FILL
-	var friendship := int(_state.regular("karthik")["friendship"])
+	var friendship := int(_state.regular(id)["friendship"])
 	hearts.draw.connect(func() -> void:
 		for i in 5:
 			var full := friendship >= (i + 1) * 20
 			Style.draw_symbol(hearts, "heart" if full else "heart_empty", Vector2(hearts.size.x - 60 + i * 13, 6), 1.0))
 	head.add_child(hearts)
-	box.add_child(head)
-	var line := Story.hook("karthik", _state.day)
-	if not _state.today["met"].has("karthik"):
-		line = "%s didn't make it to the counter today." % info["name"] if _state.regular("karthik")["visits"] > 0 \
-			else "A college student was looking at your kadai from across the road."
-	box.add_child(Style.paragraph(line, 290.0, Style.INK))
-	return panel
+	text.add_child(head)
+	text.add_child(Style.paragraph(line, 260.0, Style.INK))
+	return row
 
 
 func _build_upgrades() -> Control:
@@ -224,6 +255,11 @@ func _build_upgrades() -> Control:
 		owned_label.clip_text = true
 		box.add_child(owned_label)
 	return panel
+
+
+func _save_card() -> void:
+	var path := await ShareCard.save_png(self, ShareCard.for_day(_state), "Tea Kadai - Day %d.png" % _state.day)
+	_saved.text = "Saved to Desktop: " + path.get_file()
 
 
 func _buy(id: String) -> void:

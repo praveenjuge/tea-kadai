@@ -11,7 +11,6 @@ const PERFECT_GAIN := 4
 const REMEMBERED_GAIN := 6
 const REMEMBERED_TIP := 5
 const GRUMPY_LOSS := 6
-const TEACH_LINE := "Anna, crush some ginger into the decoction. My amma's trick!"
 
 var id: String
 var info: Dictionary
@@ -67,7 +66,7 @@ func update(delta: float) -> void:
 	var customer: Dictionary = _service.seats[seat]
 	if customer["usual_hidden"] and _wait >= float(info["usual_hint_after"]):
 		customer["usual_hidden"] = false
-		_service.said.emit(seat, "Tea and a bun, anna. Same as always!")
+		_service.said.emit(seat, info.get("usual_hint", "The usual, anna!"))
 	if not _asked and visit.has("ask") and _wait >= ASK_AFTER:
 		_asked = true
 		var options: Array = []
@@ -161,20 +160,25 @@ func _try_arrive() -> void:
 		_service.happened.emit("treat", 0)
 	if with_friends:
 		for i in bring:
-			_service.arrive("student")
+			_service.arrive(info.get("friend_type", "student"))
 
 
 func _should_teach() -> bool:
+	if not info.has("teaches"):
+		return false
 	var flags: Dictionary = _service.state.regular(id)["flags"]
-	return (not flags.get("taught", false) and _service.state.day >= 3
-		and friendship() >= int(info["teach_at"]) and not _service.state.recipes.has("ginger_tea"))
+	return (not flags.get("taught", false) and _service.state.day >= int(info["teach_from_day"])
+		and friendship() >= int(info["teach_at"]) and not _service.state.recipes.has(info["teaches"]))
 
 
 func _teach() -> void:
 	var state := _service.state
+	var recipe: String = info["teaches"]
 	state.regular(id)["flags"]["taught"] = true
-	state.recipes.append("ginger_tea")
-	state.stock["ginger"] = int(state.stock["ginger"]) + 20
-	_service.said.emit(seat, visit["wait"] if visit.has("teach") else TEACH_LINE)
-	_service.message.emit("New recipe: ginger tea! %s's amma sent some ginger too." % info["name"])
+	state.recipes.append(recipe)
+	var gift: Dictionary = info.get("teach_gift", {})
+	for stock_id in gift:
+		state.stock[stock_id] = int(state.stock[stock_id]) + int(gift[stock_id])
+	_service.said.emit(seat, visit["wait"] if visit.has("teach") else info["teach_line"])
+	_service.message.emit("New recipe from %s: %s!" % [info["name"], Catalog.MENU[recipe]["name"].to_lower()])
 	_service.happened.emit("recipe", 0)
