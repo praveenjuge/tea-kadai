@@ -12,7 +12,9 @@ name: Build and release
 # builds ship unsigned.
 #
 # Releases also go to itch.io once BUTLER_API_KEY and the ITCH_GAME variable
-# are set (docs/ITCH.md).
+# are set (docs/ITCH.md), and to the Mac App Store once its signing secrets
+# are (docs/APP_STORE.md): a Mac builds the App Store package, uploads it, and
+# puts it up for review in place of any older version still waiting.
 
 on:
   push:
@@ -40,6 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     # Long enough to wait for the SignPath approval.
     timeout-minutes: 90
+    outputs:
+      version: ${{ steps.version.outputs.next }}
+      previous: ${{ steps.version.outputs.previous }}
     env:
       RELEASING: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       SIGN_MAC: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.MACOS_CERTIFICATE_P12 != '' }}
@@ -271,3 +276,130 @@ jobs:
           for channel in mac windows linux; do
             /tmp/butler/butler push "build/itch/$channel" "$ITCH_GAME:$channel" --userversion "$NEXT"
           done
+
+  app-store:
+    # Apple's packaging needs Xcode, so the App Store build runs on a Mac once
+    # the release is out. The newest release always replaces whatever is
+    # waiting for review (tools/app_store_submit.py).
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 75
+    env:
+      READY: ${{ secrets.APPSTORE_APP_CERTIFICATE_P12 != '' && secrets.APPSTORE_INSTALLER_CERTIFICATE_P12 != '' && secrets.APPSTORE_PROVISIONING_PROFILE != '' && secrets.APPSTORE_API_PRIVATE_KEY != '' }}
+      APP_STORE_APP_ID: "6834836627"
+      NEXT: ${{ needs.build.outputs.version }}
+      PREVIOUS: ${{ needs.build.outputs.previous }}
+    steps:
+      - name: Skip without the App Store secrets
+        if: env.READY != 'true'
+        run: echo "The App Store signing secrets aren't set up yet (docs/APP_STORE.md), so this release skips the App Store."
+
+      - uses: actions/checkout@v4
+        if: env.READY == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Cache Godot for Mac
+        if: env.READY == 'true'
+        id: godot-mac-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot-mac
+            ~/Library/Application Support/Godot/export_templates
+          key: godot-mac-${{ env.GODOT_VERSION }}-v1
+
+      - name: Download Godot for Mac and the export template
+        if: env.READY == 'true' && steps.godot-mac-cache.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot-mac
+          curl -fsSL --retry 3 -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q /tmp/godot.zip -d ~/godot-mac
+          curl -fsSL --retry 3 -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          unzip -q -j /tmp/templates.tpz templates/version.txt templates/macos.zip -d "$dest"
+          rm /tmp/godot.zip /tmp/templates.tpz
+
+      - name: Put Godot on the path
+        if: env.READY == 'true'
+        run: |
+          mkdir -p ~/bin
+          printf '#!/bin/sh\nexec "%s/godot-mac/Godot.app/Contents/MacOS/Godot" "$@"\n' "$HOME" > ~/bin/godot
+          chmod +x ~/bin/godot
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          ~/bin/godot --version
+
+      - name: Set up signing
+        if: env.READY == 'true'
+        env:
+          APP_P12: ${{ secrets.APPSTORE_APP_CERTIFICATE_P12 }}
+          INSTALLER_P12: ${{ secrets.APPSTORE_INSTALLER_CERTIFICATE_P12 }}
+          P12_PASSWORD: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
+          PROFILE: ${{ secrets.APPSTORE_PROVISIONING_PROFILE }}
+        run: |
+          keychain="$RUNNER_TEMP/app-store.keychain-db"
+          password=$(openssl rand -hex 16)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          for name in APP_P12 INSTALLER_P12; do
+            printf '%s' "${!name}" | base64 -D > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$P12_PASSWORD" \
+              -T /usr/bin/codesign -T /usr/bin/productbuild -T /usr/bin/pkgbuild
+            rm "$RUNNER_TEMP/cert.p12"
+          done
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productbuild: -s -k "$password" "$keychain" > /dev/null
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          printf '%s' "$PROFILE" | base64 -D > "$RUNNER_TEMP/TeaKadai_AppStore.provisionprofile"
+          team=$(security find-identity -v -p codesigning "$keychain" | grep "Apple Distribution" | head -n 1 | sed -E 's/.*\(([A-Z0-9]{10})\).*/\1/')
+          {
+            echo "KEYCHAIN=$keychain"
+            echo "APPLE_TEAM_ID=$team"
+            echo "APPSTORE_PROFILE=$RUNNER_TEMP/TeaKadai_AppStore.provisionprofile"
+          } >> "$GITHUB_ENV"
+
+      - name: Build the App Store package
+        if: env.READY == 'true'
+        run: |
+          tools/build_app_store.sh
+          echo "BUILD=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+
+      - name: Upload to App Store Connect
+        if: env.READY == 'true'
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s\n' "$PRIVATE_KEY" > ~/.appstoreconnect/private_keys/"AuthKey_$KEY_ID.p8"
+          xcrun altool --upload-package build/TeaKadai-AppStore.pkg --type macos --apple-id "$APP_STORE_APP_ID" \
+            --bundle-id teakadai.praveenjuge.game --bundle-version "$BUILD" --bundle-short-version-string "$NEXT" \
+            --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
+
+      - name: Submit for review
+        if: env.READY == 'true'
+        env:
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet "pyjwt[crypto]==2.10.1"
+          if [ -n "$PREVIOUS" ]; then
+            git log --pretty='• %s' "$PREVIOUS..HEAD" > "$RUNNER_TEMP/notes.txt"
+          else
+            echo "• First release" > "$RUNNER_TEMP/notes.txt"
+          fi
+          "$RUNNER_TEMP/venv/bin/python" tools/app_store_submit.py --app "$APP_STORE_APP_ID" \
+            --version "$NEXT" --build "$BUILD" --notes-file "$RUNNER_TEMP/notes.txt"
+
+      - name: Clean up signing
+        if: always() && env.READY == 'true'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/app-store.keychain-db" || true
+          rm -rf ~/.appstoreconnect/private_keys "$RUNNER_TEMP/TeaKadai_AppStore.provisionprofile"
