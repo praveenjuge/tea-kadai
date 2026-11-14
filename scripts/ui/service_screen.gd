@@ -25,9 +25,7 @@ var _effects := EffectsLayer.new()
 var _tea_panel: TeaPanel
 var _fryer_panel: FryerPanel
 var _tray_panel: TrayPanel
-var _clock: Label
-var _phase: Label
-var _money: Label
+var _hud: HudBar
 var _toast: Label
 var _toast_left := 0.0
 var _hint: Label
@@ -48,7 +46,9 @@ func _ready() -> void:
 	root.add_theme_constant_override("separation", 0)
 	add_child(root)
 
-	root.add_child(_build_top_bar())
+	_hud = HudBar.new(_service)
+	_hud.menu_pressed.connect(_toggle_pause)
+	root.add_child(_hud)
 	_street = StreetView.new(_service)
 	_street.size_flags_vertical = SIZE_EXPAND_FILL
 	_street.seat_clicked.connect(_on_seat_clicked)
@@ -74,18 +74,17 @@ func _ready() -> void:
 	_toast.mouse_filter = MOUSE_FILTER_IGNORE
 	_street.add_child(_toast)
 
-	var stations := HBoxContainer.new()
-	stations.add_theme_constant_override("separation", 0)
-	stations.custom_minimum_size.y = 118
+	var stations := CounterTop.new()
+	stations.custom_minimum_size.y = 124
 	_tea_panel = TeaPanel.new(_service)
 	_fryer_panel = FryerPanel.new(_service)
 	_tray_panel = TrayPanel.new(_service)
 	for panel in [_tea_panel, _fryer_panel, _tray_panel]:
-		stations.add_child(panel)
+		stations.add_station(panel)
 	root.add_child(stations)
 
 	_effects.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	_effects.coin_landed.connect(_punch_money)
+	_effects.coin_landed.connect(_hud.punch_money)
 	add_child(_effects)
 	_pause_menu = _build_pause_menu()
 	add_child(_pause_menu)
@@ -100,25 +99,6 @@ func _ready() -> void:
 	_service.happened.connect(_on_happened)
 	_service.phase_started.connect(_on_phase_started)
 	_show_toast("%s. The kadai is open!" % Catalog.date_text(_state.day))
-
-
-func _build_top_bar() -> Control:
-	var bar := PanelContainer.new()
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	bar.add_child(row)
-	row.add_child(Style.label("Day %d · %s" % [_state.day, Catalog.weekday_short(_state.day)], Style.ACCENT))
-	_clock = Style.label("")
-	row.add_child(_clock)
-	_phase = Style.label("", Style.MUTED)
-	_phase.size_flags_horizontal = SIZE_EXPAND_FILL
-	row.add_child(_phase)
-	_money = Style.label("", Style.ACCENT)
-	row.add_child(_money)
-	var menu := Style.button("Menu", _toggle_pause, true)
-	menu.custom_minimum_size.y = 14
-	row.add_child(menu)
-	return bar
 
 
 func _build_pause_menu() -> Control:
@@ -136,6 +116,9 @@ func _build_pause_menu() -> Control:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size.x = 200
 	center.add_child(panel)
+	cover.visibility_changed.connect(func() -> void:
+		if cover.visible:
+			Style.pop_in(panel))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	panel.add_child(box)
@@ -152,10 +135,6 @@ func _build_pause_menu() -> Control:
 func _process(delta: float) -> void:
 	if not _paused:
 		_service.update(delta)
-	_clock.text = _service.clock.time_text()
-	_phase.text = _service.clock.phase()["name"] + ("  ·  Raining" if _service.is_raining() else "")
-	var earned := int(_state.today["revenue"]) + int(_state.today["tips"])
-	_money.text = "%s today · %s" % [Style.rupees(earned), Style.rupees(_state.money)]
 	_update_sound()
 	_tea_panel.refresh()
 	_fryer_panel.refresh()
@@ -226,7 +205,7 @@ func _on_customer_left(seat: int, customer: Dictionary, outcome: String) -> void
 	_street.on_left(seat, customer, outcome)
 	if outcome == "served":
 		var from := _street.position + _street.seat_point(seat)
-		var to := _money.global_position - global_position + _money.size / 2.0
+		var to := _hud.money_point() - global_position
 		_effects.fly_coins(from, to, 2 + int(customer["tip"]) / 2)
 
 
@@ -245,13 +224,6 @@ func _on_phase_started(phase: Dictionary) -> void:
 	if not banner.is_empty():
 		_effects.banner(banner[0], banner[1])
 	_sound.set_rush(phase["id"] in ["morning_rush", "evening_rush"])
-
-
-func _punch_money() -> void:
-	_money.pivot_offset = _money.size / 2.0
-	var punch := create_tween()
-	punch.tween_property(_money, "scale", Vector2(1.2, 1.2), 0.06)
-	punch.tween_property(_money, "scale", Vector2.ONE, 0.12)
 
 
 func _show_toast(text: String) -> void:

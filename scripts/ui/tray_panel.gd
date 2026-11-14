@@ -12,15 +12,16 @@ func _init(service: Service) -> void:
 
 
 func _ready() -> void:
+	theme_type_variation = "BarePanel"
 	size_flags_horizontal = SIZE_EXPAND_FILL
 	var box := VBoxContainer.new()
 	add_child(box)
-	box.add_child(Style.label("Ready to serve", Style.ACCENT))
+	box.add_child(Style.outlined("Ready to serve", Style.ACCENT))
 	_art = Control.new()
 	_art.size_flags_vertical = SIZE_EXPAND_FILL
 	_art.draw.connect(_draw_ready)
 	box.add_child(_art)
-	box.add_child(Style.label("Click a customer to serve them.", Style.MUTED))
+	box.add_child(Style.outlined("Click a customer to serve them.", Style.PAPER))
 
 
 func refresh() -> void:
@@ -33,9 +34,16 @@ func _draw_ready() -> void:
 	# One row while the menu is short, two once it grows.
 	var rows := 1 if items.size() <= 6 else 2
 	var per_row := ceili(items.size() / float(rows))
-	var column := _art.size.x / per_row
+	# Items keep a comfortable spacing on wide screens instead of spreading out.
+	var column := minf(_art.size.x / per_row, 56.0)
 	var row_h := _art.size.y / rows
 	var scale := 2.0 if rows == 1 else 1.5
+	# A steel tray under each row.
+	for r in rows:
+		var tray := Rect2(2, row_h * r + row_h * 0.38 + 6 * scale, column * per_row - 4, 4)
+		_art.draw_rect(tray, Color("9aa3ad"))
+		_art.draw_rect(Rect2(tray.position, Vector2(tray.size.x, 1)), Color("d8dde3"))
+		_art.draw_rect(Rect2(tray.position + Vector2(0, tray.size.y), Vector2(tray.size.x, 2)), Color(0, 0, 0, 0.25))
 	for i in items.size():
 		var item := items[i]
 		var count := _service.ready_count(item)

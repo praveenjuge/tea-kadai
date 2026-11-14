@@ -17,6 +17,7 @@ func _init(service: Service) -> void:
 
 
 func _ready() -> void:
+	theme_type_variation = "BarePanel"
 	custom_minimum_size = Vector2(230, 0)
 	var box := VBoxContainer.new()
 	add_child(box)
@@ -48,7 +49,7 @@ func _build_head() -> void:
 	_kinds.clear()
 	_drinks = _service.drinks()
 	if _drinks.size() == 1:
-		_head.add_child(Style.label("Tea", Style.ACCENT))
+		_head.add_child(Style.outlined("Tea", Style.ACCENT))
 	else:
 		for kind in _drinks:
 			var short: String = Catalog.MENU[kind].get("short", Catalog.MENU[kind]["name"])
@@ -57,7 +58,7 @@ func _build_head() -> void:
 			pick.custom_minimum_size.y = 14
 			_head.add_child(pick)
 			_kinds[kind] = pick
-	_stock = Style.label("", Style.MUTED)
+	_stock = Style.outlined("", Style.PAPER)
 	_stock.size_flags_horizontal = SIZE_EXPAND_FILL
 	_stock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_stock.clip_text = true
@@ -96,14 +97,19 @@ class TeaArt extends Control:
 
 	func _draw() -> void:
 		var floor_y := size.y - 4.0
-		draw_rect(Rect2(0, floor_y, size.x - METER_W - 8, 4), Style.LINE)
+		# Soft shadows where the pot and glass sit on the counter.
+		draw_rect(Rect2(10, floor_y - 1, 38, 3), Color(0, 0, 0, 0.25))
+		draw_rect(Rect2(size.x * 0.5 - 12, floor_y - 1, 24, 3), Color(0, 0, 0, 0.2))
 		_draw_milk_pot(Vector2(28, floor_y))
 		_draw_glass(Vector2(size.x * 0.5, floor_y))
 		_draw_meter(Rect2(size.x - METER_W, 2, METER_W, floor_y - 2))
 
 	func _draw_milk_pot(base: Vector2) -> void:
 		draw_rect(Rect2(base.x - 16, base.y - 6, 32, 6), Color("2b2b2b"))
-		draw_rect(Rect2(base.x - 12, base.y - 8, 24, 2), Color("4a7bd9"))
+		var flicker := Time.get_ticks_msec() / 90
+		for i in 5:
+			var tall := 2 + (flicker + i * 3) % 3
+			draw_rect(Rect2(base.x - 11 + i * 5, base.y - 6 - tall, 3, tall), Color("4a7bd9") if i % 2 == 0 else Color("7aa8f0"))
 		draw_rect(Rect2(base.x - 15, base.y - 34, 30, 26), Color("b8863b"))
 		draw_rect(Rect2(base.x - 16, base.y - 36, 32, 3), Color("d9a55b"))
 		var t := Time.get_ticks_msec() / 1000.0

@@ -38,9 +38,13 @@ func _ready() -> void:
 	shade.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(shade)
 
+	# Left-aligned and vertically centred, whatever the screen height.
 	var column := VBoxContainer.new()
-	column.position = Vector2(36, 40)
 	column.add_theme_constant_override("separation", 6)
+	column.anchor_top = 0.5
+	column.anchor_bottom = 0.5
+	column.offset_left = 36
+	column.grow_vertical = GROW_DIRECTION_BOTH
 	add_child(column)
 
 	var logo := HBoxContainer.new()

@@ -35,16 +35,19 @@ func _ready() -> void:
 	add_child(margin)
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 12)
+	columns.size_flags_vertical = SIZE_SHRINK_CENTER
 	margin.add_child(columns)
-	columns.add_child(_build_tally())
+	var tally := _build_tally()
+	columns.add_child(tally)
+	Style.pop_in(tally)
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 6)
 	columns.add_child(right)
-	right.add_child(_build_level())
-	right.add_child(_build_goals())
-	right.add_child(_build_regular())
-	right.add_child(_build_upgrades())
+	var cards: Array[Control] = [_build_level(), _build_goals(), _build_regular(), _build_upgrades()]
+	for i in cards.size():
+		right.add_child(cards[i])
+		Style.pop_in(cards[i], 0.15 + i * 0.12)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = SIZE_EXPAND_FILL
 	right.add_child(spacer)

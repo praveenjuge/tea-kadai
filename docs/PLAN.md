@@ -195,6 +195,15 @@ Built in response:
 - **Faces:** bigger front-facing customers with eyes, hair styles, mustaches, glasses, sarees and helmets; two new customer types (a nurse and a flower seller); varied passers-by; face portraits beside regulars' speech.
 - **Prices** moved into their own panel.
 
+## Round 5: responsive and real-game look (2026-11-14)
+
+Asked for: no black bars in fullscreen, and graphics and UI that look like a real game. The service screen felt the weakest.
+
+- **Responsive:** the game fills any window or screen at a crisp whole-number pixel scale; extra space shows more street (UI stays the same size).
+- **Service screen:** an icon HUD (clock dial that fills through the day, rolling coin counter, level badge, weather) and one wooden counter for the stove, kadai and steel tray instead of three flat panels.
+- **Street:** a sky that changes from dawn to starry night, a row of colourful shop fronts and houses with lit windows at night, tiled pavement with cracks, a colourful kolam, a drain, a proper auto rickshaw, a bus with windows, scooters, street lamps with glow, and shadows that follow the sun.
+- **Polish:** outlined pixel-art boxes, flames under the pot and kadai, heat shimmer, a newspaper picture, buttons that lift and squash, panels that pop in, money that rolls up, and customers who wave, slump with a storm cloud when grumpy, and hop when they leave happy.
+
 ## Next up
 
 In order:

@@ -15,6 +15,7 @@ func _init(service: Service) -> void:
 
 
 func _ready() -> void:
+	theme_type_variation = "BarePanel"
 	custom_minimum_size = Vector2(190, 0)
 	var box := VBoxContainer.new()
 	add_child(box)
@@ -23,14 +24,14 @@ func _ready() -> void:
 	head.add_theme_constant_override("separation", 3)
 	var fries := _service.fries()
 	if fries.size() == 1:
-		head.add_child(Style.label("Vadai", Style.ACCENT))
+		head.add_child(Style.outlined("Vadai", Style.ACCENT))
 	else:
 		for kind in fries:
 			var pick := Style.button(Catalog.MENU[kind]["name"], _service.set_fry_kind.bind(kind), true)
 			pick.custom_minimum_size.y = 14
 			head.add_child(pick)
 			_kinds[kind] = pick
-	_stock = Style.label("", Style.MUTED)
+	_stock = Style.outlined("", Style.PAPER)
 	_stock.size_flags_horizontal = SIZE_EXPAND_FILL
 	_stock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	head.add_child(_stock)
@@ -80,6 +81,13 @@ class FryerArt extends Control:
 
 	func _draw() -> void:
 		var center := Vector2(size.x / 2.0, size.y / 2.0)
+		# Stove ring and flames under the kadai.
+		_ellipse(center + Vector2(0, 14), 58, 12, Color(0, 0, 0, 0.3))
+		draw_rect(Rect2(center.x - 40, center.y + 8, 80, 8), Color("2b2b2b"))
+		var t0 := Time.get_ticks_msec() / 90
+		for i in 7:
+			var tall := 2 + (t0 + i * 2) % 4
+			draw_rect(Rect2(center.x - 30 + i * 9, center.y + 8 - tall, 3, tall), Color("4a7bd9") if i % 2 == 0 else Color("e8742f"))
 		_ellipse(center + Vector2(0, 4), 66, 24, Color("1f1f1f"))
 		_ellipse(center, 62, 20, Color("3a3a3a"))
 		_ellipse(center, 56, 16, Color("b07a2a"))
@@ -100,6 +108,13 @@ class FryerArt extends Control:
 				draw_circle(at, 2.5, Color("8a5a1f"))
 			if done == Fryer.Doneness.GOLDEN:
 				draw_arc(at, VADAI_R + 2.0, 0, TAU, 20, Style.GOOD, 1.5)
+		# Heat shimmer rising off the oil.
+		for i in 4:
+			var x := center.x - 30 + i * 20
+			var rise := fmod(t * 18.0 + i * 7.0, 18.0)
+			var wobble := sin(t * 6.0 + i) * 2.0
+			draw_line(Vector2(x + wobble, center.y - 12 - rise), Vector2(x - wobble, center.y - 16 - rise),
+				Color(1, 0.95, 0.8, 0.25 * (1.0 - rise / 18.0)), 1.0)
 		var progress := clampf(fryer.time / fryer.golden_at(), 0.0, 1.0)
 		if done == Fryer.Doneness.RAW:
 			draw_rect(Rect2(center.x - 30, size.y - 5, 60, 3), Color(0, 0, 0, 0.4))

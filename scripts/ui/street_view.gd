@@ -19,9 +19,6 @@ const LEAVE_SECONDS := 1.6
 ## Customers are drawn a little larger than passers-by so their faces read.
 const CUSTOMER_SCALE := 1.25
 
-const WALL := Color("6aa39a")
-const PAVEMENT := Color("b9a58a")
-const ROAD := Color("4b4a4f")
 const WOOD := Color("9a6a3c")
 const STALL_PAINT := Color("2f7fb5")
 const TARP := Color("3b6fc4")
@@ -30,21 +27,26 @@ var _service: Service
 var _time := 0.0
 ## Walk-in progress per seat, 0 to 1.
 var _arrive: Array[float] = []
+## Seconds left of each seat's hello wave.
+var _wave: Array[float] = []
 ## Customers on their way out: {"type", "tile", "t", "text", "color"}.
 var _leavers: Array[Dictionary] = []
 var _origin := Vector2.ZERO
 var _font: Font
 var _speech: SpeechBubbles
 var _life: StreetLife
+var _scenery: StreetScenery
 
 
 func _init(service: Service) -> void:
 	_service = service
 	for i in service.seats.size():
 		_arrive.append(1.0)
+		_wave.append(0.0)
 	clip_contents = true
 	_speech = SpeechBubbles.new(self)
 	_life = StreetLife.new(self)
+	_scenery = StreetScenery.new(self)
 
 
 func _ready() -> void:
@@ -53,6 +55,7 @@ func _ready() -> void:
 
 func on_arrived(seat: int) -> void:
 	_arrive[seat] = 0.0
+	_wave[seat] = WALK_SECONDS + 1.2
 
 
 func say(seat: int, text: String) -> void:
@@ -93,18 +96,21 @@ func on_left(seat: int, customer: Dictionary, outcome: String) -> void:
 	elif outcome == "out_of_stock":
 		text = "Nothing left? Okay…"
 		color = Style.MUTED
-	_leavers.append({"type": customer["type"], "tile": SEAT_TILES[seat], "t": 0.0, "text": text, "color": color})
+	var happy: bool = outcome == "served" and not customer["grumpy"]
+	_leavers.append({"type": customer["type"], "tile": SEAT_TILES[seat], "t": 0.0, "text": text, "color": color, "happy": happy})
 
 
 func _process(delta: float) -> void:
 	_time += delta
 	for i in _arrive.size():
 		_arrive[i] = minf(1.0, _arrive[i] + delta / WALK_SECONDS)
+		_wave[i] = maxf(0.0, _wave[i] - delta)
 	for leaver in _leavers:
 		leaver["t"] += delta
 	_leavers = _leavers.filter(func(l: Dictionary) -> bool: return l["t"] < LEAVE_SECONDS)
 	_speech.update(delta)
 	_life.update(delta)
+	_scenery.update(delta)
 	queue_redraw()
 
 
@@ -153,7 +159,10 @@ func _iso(tile: Vector2, up: float = 0.0) -> Vector2:
 
 func _draw() -> void:
 	_origin = Vector2(roundf(size.x * 0.5 - 60.0), roundf(size.y * 0.5 - 28.0))
-	_draw_ground()
+	_scenery.draw_sky()
+	_scenery.draw_buildings()
+	_scenery.draw_ground()
+	_scenery.draw_shadows()
 	_draw_stall()
 	_draw_tree(Vector2(-0.6, 3.6))
 	if _service.state.has_upgrade("bench"):
@@ -162,16 +171,25 @@ func _draw() -> void:
 	for seat in _service.seats.size():
 		var customer = _service.seats[seat]
 		if customer != null:
-			draw_person(customer["type"], _walk_tile(seat), _arrive[seat] < 1.0, 1.0)
+			var pose := ""
+			if customer["grumpy"]:
+				pose = "slump"
+			elif _arrive[seat] >= 1.0 and _wave[seat] > 0.0:
+				pose = "wave"
+			draw_person(customer["type"], _walk_tile(seat), _arrive[seat] < 1.0, 1.0, pose)
 	for leaver in _leavers:
 		var t: float = leaver["t"] / LEAVE_SECONDS
 		var from: Vector2 = leaver["tile"]
 		var tile := from.lerp(Vector2(from.x + 1.5, ROAD_EDGE_Y + 0.6), t)
-		draw_person(leaver["type"], tile, true, 1.0 - t)
+		# Happy customers hop as they leave.
+		var hop: float = absf(sin(t * TAU * 1.5)) * 5.0 if leaver.get("happy", false) and t < 0.66 else 0.0
+		draw_person(leaver["type"], tile, true, 1.0 - t, "", hop)
 	_life.draw_passers_by()
-	_draw_traffic()
+	_scenery.draw_lamps(true)
+	_scenery.draw_traffic()
 	_life.draw_rain()
 	_draw_light()
+	_scenery.draw_lamps(false)
 	for seat in _service.seats.size():
 		if _service.seats[seat] != null and _arrive[seat] >= 1.0:
 			_draw_bubble(seat, _service.seats[seat])
@@ -187,21 +205,6 @@ func _walk_tile(seat: int) -> Vector2:
 	var to := SEAT_TILES[seat]
 	var t := ease(_arrive[seat], 0.6)
 	return Vector2(to.x - 1.0, ROAD_EDGE_Y).lerp(to, t)
-
-
-func _draw_ground() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), WALL)
-	var poster := [_iso(Vector2(8.5, -0.5), 66), _iso(Vector2(11.5, -0.5), 66), _iso(Vector2(11.5, -0.5), 26), _iso(Vector2(8.5, -0.5), 26)]
-	draw_colored_polygon(PackedVector2Array(poster), Color("e8c547"))
-	draw_colored_polygon(PackedVector2Array([poster[0] + Vector2(4, 6), poster[1] + Vector2(-4, 6), poster[2] + Vector2(-4, -4), poster[3] + Vector2(4, -4)]), Color("c0392b"))
-	_text(_iso(Vector2(10.0, -0.5), 42), "CINEMA", Style.FROTH, HORIZONTAL_ALIGNMENT_CENTER)
-	_quad(Vector2(-30, -0.5), Vector2(30, 30), PAVEMENT)
-	_quad(Vector2(-30, 5.6), Vector2(30, 8.6), ROAD)
-	_quad(Vector2(-30, 5.4), Vector2(30, 5.6), Color("8c8273"))
-	var dash := -30.0
-	while dash < 30.0:
-		_quad(Vector2(dash, 7.05), Vector2(dash + 0.8, 7.15), Color("d8d3c4"))
-		dash += 2.0
 
 
 func _draw_stall() -> void:
@@ -359,21 +362,24 @@ func _draw_counter_things() -> void:
 		draw_rect(Rect2(x, y, 1, 3), Color(1, 1, 1, 0.45))
 
 
-func draw_person(type_id: String, tile: Vector2, walking: bool, alpha: float) -> void:
-	draw_figure(Service.kind_of(type_id), _iso(tile).round(), walking, alpha, CUSTOMER_SCALE)
+## "pose" is "", "wave" or "slump"; "lift" raises them off the ground (a hop).
+func draw_person(type_id: String, tile: Vector2, walking: bool, alpha: float, pose: String = "", lift: float = 0.0) -> void:
+	draw_figure(Service.kind_of(type_id), _iso(tile).round() - Vector2(0, lift), walking, alpha, CUSTOMER_SCALE, pose)
 
 
 ## A little person standing on "feet". "look" needs shirt, legs and hair
 ## colours; a "bag" colour adds a backpack.
-func draw_figure(look: Dictionary, feet: Vector2, walking: bool, alpha: float, scale: float = 1.0) -> void:
+func draw_figure(look: Dictionary, feet: Vector2, walking: bool, alpha: float, scale: float = 1.0, pose: String = "") -> void:
 	draw_set_transform(feet, 0.0, Vector2(scale, scale))
 	# Two-frame walk: legs swap and the body bobs on the second frame.
 	var step := (int(_time * 8.0) % 2) if walking else 0
-	var bob := float(step)
+	var bob := float(step) + (1.5 if pose == "slump" else 0.0)
 	var shirt: Color = look["shirt"]
 	var legs: Color = look["legs"]
 	var skin: Color = look.get("skin", Style.SKIN)
-	draw_rect(Rect2(-5, -1, 10, 2), Color(0, 0, 0, 0.2 * alpha))
+	var sun := _scenery.shadow_offset(12.0) / scale if _scenery.sun_up() else Vector2.ZERO
+	draw_colored_polygon(PackedVector2Array([Vector2(-4, -1), Vector2(4, -1), Vector2(4, 1) + sun, Vector2(-4, 1) + sun]),
+		Color(0.15, 0.08, 0.02, 0.25 * alpha))
 	if look.has("saree"):
 		var saree: Color = look["saree"]
 		draw_colored_polygon(PackedVector2Array([Vector2(-4, -12 - bob), Vector2(4, -12 - bob),
@@ -384,7 +390,12 @@ func draw_figure(look: Dictionary, feet: Vector2, walking: bool, alpha: float, s
 		draw_rect(Rect2(1, -11 - bob, 2, 11 - (2 if walking and step == 0 else 0) + bob), Color(legs, alpha))
 	draw_rect(Rect2(-4, -22 - bob, 8, 12), Color(shirt, alpha))
 	draw_rect(Rect2(-5, -21 - bob, 1, 8), Color(skin, alpha))
-	draw_rect(Rect2(4, -21 - bob, 1, 8), Color(skin, alpha))
+	if pose == "wave":
+		var swing := sin(_time * 14.0) * 1.5
+		draw_rect(Rect2(4, -30 - bob, 1, 9), Color(skin, alpha))
+		draw_rect(Rect2(4 + swing, -32 - bob, 2, 2), Color(skin, alpha))
+	else:
+		draw_rect(Rect2(4, -21 - bob, 1, 8), Color(skin, alpha))
 	if look.has("saree"):
 		draw_colored_polygon(PackedVector2Array([Vector2(1, -22 - bob), Vector2(4, -22 - bob),
 			Vector2(-4, -12 - bob), Vector2(-4, -15 - bob)]), Color(look["saree"], alpha))
@@ -396,6 +407,12 @@ func draw_figure(look: Dictionary, feet: Vector2, walking: bool, alpha: float, s
 		draw_rect(Rect2(4, -20 - bob, 3, 7), Color(look["bag"], alpha))
 	draw_set_transform(feet + Vector2(0, (-22 - bob) * scale), 0.0, Vector2(scale, scale))
 	Style.draw_head(self, look, alpha)
+	if pose == "slump":
+		# A little storm cloud over a grumpy head.
+		var drift := sin(_time * 3.0)
+		draw_circle(Vector2(-2 + drift, -15), 2.5, Color(0.35, 0.35, 0.4, alpha))
+		draw_circle(Vector2(1 + drift, -16), 3.0, Color(0.35, 0.35, 0.4, alpha))
+		draw_line(Vector2(0 + drift, -13), Vector2(-1 + drift, -10), Color("ffca3a", alpha), 1.0)
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -495,16 +512,6 @@ func _draw_cow(tile: Vector2) -> void:
 	draw_line(at + Vector2(-12, -13), at + Vector2(-15 + swish, -5), white.darkened(0.2), 1.0)
 
 
-func _draw_traffic() -> void:
-	var lane := fmod(_time * 2.2, 44.0) - 22.0
-	var auto_tile := Vector2(lane, 6.3)
-	_box(auto_tile, auto_tile + Vector2(1.3, 0.7), 8, Color("2a2a2a"), Color("1e1e1e"), Color("151515"))
-	_box(auto_tile + Vector2(0.1, 0.05), auto_tile + Vector2(1.2, 0.65), 16, Color("e8c547"), Color("3a8a3a"), Color("2e6e2e"))
-	var bus := 22.0 - fmod(_time * 1.5 + 18.0, 44.0)
-	var bus_tile := Vector2(bus, 7.4)
-	_box(bus_tile, bus_tile + Vector2(3.2, 0.9), 24, Color("d64a3a"), Color("b5321f"), Color("8f2718"))
-
-
 ## Tints the scene for the time of day and lights the tube light after dark.
 func _draw_light() -> void:
 	var minute := _service.clock.minutes()
@@ -551,9 +558,16 @@ func _box(from: Vector2, to: Vector2, height: float, top: Color, left: Color, ri
 	var b := _iso(to)
 	var c := _iso(Vector2(to.x, from.y))
 	var up := Vector2(0, height)
+	var d := _iso(from, height)
 	draw_colored_polygon(PackedVector2Array([a, b, b - up, a - up]), left)
 	draw_colored_polygon(PackedVector2Array([b, c, c - up, b - up]), right)
-	draw_colored_polygon(PackedVector2Array([_iso(from, height), c - up, b - up, a - up]), top)
+	draw_colored_polygon(PackedVector2Array([d, c - up, b - up, a - up]), top)
+	# Dark outline and a light top edge, for a crisp pixel-art look.
+	var edge := left.darkened(0.55)
+	draw_polyline(PackedVector2Array([a, b, c, c - up, d, a - up, a]), edge, 1.0)
+	draw_line(b, b - up, edge, 1.0)
+	draw_line(a - up, b - up, top.lightened(0.25), 1.0)
+	draw_line(b - up, c - up, top.lightened(0.25), 1.0)
 
 
 func _text(at: Vector2, text: String, color: Color, align: HorizontalAlignment, font_size: int = Style.FONT_SIZE) -> void:

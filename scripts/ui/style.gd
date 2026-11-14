@@ -84,6 +84,34 @@ static func make_theme() -> Theme:
 	paper.border_color = Color("c9b48c")
 	theme.set_stylebox("panel", "PaperPanel", paper)
 
+	var hud := _wood(PANEL_DARK)
+	hud.set_corner_radius_all(0)
+	hud.border_width_left = 0
+	hud.border_width_right = 0
+	hud.border_width_top = 0
+	hud.border_width_bottom = 2
+	hud.content_margin_top = 3
+	hud.content_margin_bottom = 3
+	theme.set_type_variation("HudPanel", "PanelContainer")
+	theme.set_stylebox("panel", "HudPanel", hud)
+	var tag := _wood(PAPER)
+	tag.border_color = Color("c9b48c")
+	tag.set_border_width_all(1)
+	tag.shadow_size = 0
+	tag.content_margin_left = 5
+	tag.content_margin_right = 5
+	tag.content_margin_top = 1
+	tag.content_margin_bottom = 1
+	theme.set_type_variation("TagPanel", "PanelContainer")
+	theme.set_stylebox("panel", "TagPanel", tag)
+	theme.set_type_variation("BarePanel", "PanelContainer")
+	var bare := StyleBoxEmpty.new()
+	bare.content_margin_left = 8
+	bare.content_margin_right = 8
+	bare.content_margin_top = 6
+	bare.content_margin_bottom = 6
+	theme.set_stylebox("panel", "BarePanel", bare)
+
 	var line := StyleBoxLine.new()
 	line.color = LINE
 	line.thickness = 1
@@ -159,7 +187,32 @@ static func button(text: String, on_press: Callable, quiet: bool = false) -> But
 	if quiet:
 		node.theme_type_variation = "QuietButton"
 	node.pressed.connect(on_press)
+	juice(node)
 	return node
+
+
+## Buttons lift a little on hover and squash when pressed.
+static func juice(node: BaseButton) -> void:
+	var to := func(scale: Vector2, seconds: float) -> void:
+		node.pivot_offset = node.size / 2.0
+		node.create_tween().tween_property(node, "scale", scale, seconds).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	node.mouse_entered.connect(func() -> void:
+		if not node.disabled:
+			to.call(Vector2(1.04, 1.04), 0.12))
+	node.mouse_exited.connect(func() -> void: to.call(Vector2.ONE, 0.12))
+	node.button_down.connect(func() -> void: to.call(Vector2(0.94, 0.92), 0.06))
+	node.button_up.connect(func() -> void: to.call(Vector2(1.04, 1.04) if node.is_hovered() else Vector2.ONE, 0.18))
+
+
+## Fades a control in while it grows from slightly smaller, after "delay"
+## seconds. Uses scale, not position, so it works inside containers.
+static func pop_in(node: Control, delay: float = 0.0) -> void:
+	node.modulate.a = 0.0
+	node.scale = Vector2(0.96, 0.96)
+	node.resized.connect(func() -> void: node.pivot_offset = node.size / 2.0)
+	var tween := node.create_tween().set_parallel()
+	tween.tween_property(node, "modulate:a", 1.0, 0.22).set_delay(delay)
+	tween.tween_property(node, "scale", Vector2.ONE, 0.3).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## Text with a dark outline, readable over the street scene.

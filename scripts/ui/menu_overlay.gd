@@ -22,6 +22,9 @@ func _init(title: String, width: float = 320.0) -> void:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size.x = width
 	center.add_child(panel)
+	Style.pop_in(panel)
+	dim.modulate.a = 0.0
+	dim.create_tween().tween_property(dim, "modulate:a", 1.0, 0.18)
 	_box.add_theme_constant_override("separation", 6)
 	panel.add_child(_box)
 	_box.add_child(Style.label(title, Style.ACCENT, Style.TITLE_SIZE))

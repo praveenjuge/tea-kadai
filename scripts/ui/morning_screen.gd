@@ -44,13 +44,16 @@ func _ready() -> void:
 
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 8)
-	top.add_child(_build_paper())
+	var paper := _build_paper()
+	top.add_child(paper)
+	Style.pop_in(paper)
 	var side := VBoxContainer.new()
 	side.add_theme_constant_override("separation", 6)
 	side.add_child(_build_week())
 	side.add_child(_build_goals())
 	top.add_child(side)
 	root.add_child(top)
+	Style.pop_in(side, 0.1)
 
 	_market = MarketScene.new(_state)
 	_market.custom_minimum_size.y = 124
@@ -102,19 +105,61 @@ func _build_paper() -> Control:
 	var paper := PanelContainer.new()
 	paper.theme_type_variation = "PaperPanel"
 	paper.size_flags_horizontal = SIZE_EXPAND_FILL
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	paper.add_child(row)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
-	paper.add_child(box)
+	box.size_flags_horizontal = SIZE_EXPAND_FILL
+	row.add_child(box)
+	var photo := Control.new()
+	photo.custom_minimum_size = Vector2(70, 52)
+	photo.draw.connect(_draw_photo.bind(photo))
+	row.add_child(photo)
 	box.add_child(Style.label("THE MORNING KADAI TIMES", Style.LINE))
-	box.add_child(Style.paragraph(Catalog.headline(_state.day), 280.0, Style.INK))
+	box.add_child(Style.paragraph(Catalog.headline(_state.day), 210.0, Style.INK))
 	var rain := Catalog.rain_for_day(_state.day)
 	var forecast := "Weather: clear skies, hot by noon."
 	if rain != Vector2.ZERO:
 		forecast = "Weather: showers likely around %s. Tea and bajji weather!" % _clock_text(rain.x)
-	box.add_child(Style.paragraph(forecast, 280.0, Style.LINE.darkened(0.2)))
+	box.add_child(Style.paragraph(forecast, 210.0, Style.LINE.darkened(0.2)))
 	if _state.day == 1:
-		box.add_child(Style.paragraph("You're stocked for today. Just open the kadai!", 280.0, Style.INK))
+		box.add_child(Style.paragraph("You're stocked for today. Just open the kadai!", 210.0, Style.INK))
 	return paper
+
+
+## A little printed picture for the front page, picked by the headline.
+func _draw_photo(photo: Control) -> void:
+	var r := Rect2(Vector2.ZERO, photo.size)
+	photo.draw_rect(r, Color("d9c9a5"))
+	var ink := Color("6b5a4a")
+	match (_state.day - 1) % Catalog.HEADLINES.size() % 4:
+		0:
+			# Roadworks: a cone and a digger arm.
+			photo.draw_rect(Rect2(8, 38, 54, 6), ink)
+			photo.draw_colored_polygon(PackedVector2Array([Vector2(20, 38), Vector2(26, 18), Vector2(32, 38)]), Color("e8742f"))
+			photo.draw_line(Vector2(40, 38), Vector2(52, 14), ink, 3.0)
+			photo.draw_line(Vector2(52, 14), Vector2(60, 22), ink, 3.0)
+		1:
+			# Jasmine flowers.
+			for i in 7:
+				var at := Vector2(14 + (i % 4) * 14, 16 + (i / 4) * 18)
+				for p in 5:
+					var a := TAU * p / 5.0
+					photo.draw_circle(at + Vector2(cos(a), sin(a)) * 3.0, 2.0, Color.WHITE)
+				photo.draw_circle(at, 1.5, Color("e8c547"))
+		2:
+			# A film reel.
+			photo.draw_circle(Vector2(35, 26), 18.0, ink)
+			for i in 5:
+				var a := TAU * i / 5.0
+				photo.draw_circle(Vector2(35, 26) + Vector2(cos(a), sin(a)) * 9.0, 4.0, Color("d9c9a5"))
+		_:
+			# A cricket bat and ball.
+			photo.draw_line(Vector2(20, 44), Vector2(46, 10), Color("b08a5a"), 6.0)
+			photo.draw_line(Vector2(18, 47), Vector2(22, 42), ink, 3.0)
+			photo.draw_circle(Vector2(52, 38), 5.0, Color("c0392b"))
+	photo.draw_rect(r, ink, false, 1.0)
 
 
 func _build_week() -> Control:
