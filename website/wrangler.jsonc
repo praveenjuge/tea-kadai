@@ -5,7 +5,8 @@
   "name": "tea-kadai",
   "compatibility_date": "2026-11-01",
   "assets": {
-    "directory": "./public"
+    "directory": "./public",
+    "not_found_handling": "404-page"
   },
   "routes": [
     { "pattern": "tea-kadai.praveenjuge.com", "custom_domain": true }
