@@ -1,10 +1,12 @@
 class_name TrayPanel
 extends PanelContainer
-## What's ready to hand over, plus the packaged snacks on the shelf.
+## Everything ready to hand over: tea on the tray, vadai on the plate, and the
+## packaged snacks on the shelf.
+
+const ROW_ITEMS: Array[String] = ["tea", "vadai", "biscuit", "bun"]
 
 var _service: Service
 var _art: Control
-var _shelf: Label
 
 
 func _init(service: Service) -> void:
@@ -13,35 +15,34 @@ func _init(service: Service) -> void:
 
 func _ready() -> void:
 	size_flags_horizontal = SIZE_EXPAND_FILL
-	custom_minimum_size.y = 124
 	var box := VBoxContainer.new()
 	add_child(box)
 	box.add_child(Style.label("Ready to serve", Style.ACCENT))
 	_art = Control.new()
-	_art.custom_minimum_size = Vector2(0, 26)
-	_art.draw.connect(_draw_tray)
+	_art.size_flags_vertical = SIZE_EXPAND_FILL
+	_art.draw.connect(_draw_ready)
 	box.add_child(_art)
-	_shelf = Style.label("", Style.MUTED)
-	box.add_child(_shelf)
-	var help := Style.label("Serve: click a customer or press 1 to 4. Packaged snacks come off the shelf.", Style.MUTED)
-	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(help)
+	box.add_child(Style.label("Click a customer to serve them.", Style.MUTED))
 
 
 func refresh() -> void:
-	var state := _service.state
-	_shelf.text = "Shelf: %d biscuits · %d buns" % [state.how_many("biscuit"), state.how_many("bun")]
 	_art.queue_redraw()
 
 
-func _draw_tray() -> void:
-	var width := Catalog.TRAY_SIZE * 16.0 + 8.0
-	_art.draw_rect(Rect2(0, 18, width, 4), Color("9aa3ad"))
-	_art.draw_rect(Rect2(0, 22, width, 1), Color("5f666e"))
-	for i in Catalog.TRAY_SIZE:
-		var at := Vector2(12 + i * 16, 11)
-		if i < _service.tray.size():
-			var entry: Dictionary = _service.tray[i]
-			Style.draw_item(_art, entry["item"], at, entry["quality"])
-		else:
-			_art.draw_rect(Rect2(at + Vector2(-3, 4), Vector2(6, 1)), Color(Style.MUTED, 0.3))
+func _draw_ready() -> void:
+	var font := _art.get_theme_default_font()
+	var column := _art.size.x / ROW_ITEMS.size()
+	for i in ROW_ITEMS.size():
+		var item := ROW_ITEMS[i]
+		var count := _service.ready_count(item)
+		var at := Vector2(column * (i + 0.5), _art.size.y * 0.42)
+		var alpha := 1.0 if count > 0 else 0.3
+		_art.draw_set_transform(at, 0.0, Vector2(2, 2))
+		Style.draw_item(_art, item, Vector2.ZERO)
+		_art.draw_set_transform(Vector2.ZERO)
+		if count == 0:
+			_art.draw_rect(Rect2(at - Vector2(12, 12), Vector2(24, 24)), Color(Style.PANEL, 0.7))
+		var text := "× %d" % count
+		var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, Style.FONT_SIZE).x
+		_art.draw_string(font, at + Vector2(-width / 2.0, 26), text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			Style.FONT_SIZE, Color(Style.TEXT, alpha))

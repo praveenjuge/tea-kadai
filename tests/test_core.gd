@@ -6,17 +6,38 @@ var _failures := 0
 
 
 func _init() -> void:
+	if not _scripts_compile("res://scripts"):
+		printerr("Scripts failed to compile; skipping rule checks.")
+		quit(1)
+		return
 	_test_clock()
 	_test_market()
 	_test_tea_pour()
 	_test_fryer()
 	_test_serving()
+	_test_nobody_walks_out()
+	_test_running_out()
 	_test_bot_plays_a_full_day()
 	if _failures == 0:
 		print("All core checks passed.")
 	else:
 		printerr("%d core check(s) failed." % _failures)
 	quit(1 if _failures > 0 else 0)
+
+
+## Fails loudly if any game script has a parse or compile error, which would
+## otherwise only show up as runtime errors.
+func _scripts_compile(dir_path: String) -> bool:
+	var ok := true
+	for file in DirAccess.get_files_at(dir_path):
+		if file.ends_with(".gd"):
+			var script: GDScript = load(dir_path.path_join(file))
+			if script == null or not script.can_instantiate():
+				printerr("FAIL: %s does not compile" % dir_path.path_join(file))
+				ok = false
+	for sub in DirAccess.get_directories_at(dir_path):
+		ok = _scripts_compile(dir_path.path_join(sub)) and ok
+	return ok
 
 
 func _check(ok: bool, what: String) -> void:
@@ -62,17 +83,15 @@ func _test_tea_pour() -> void:
 	var results: Array = []
 	station.poured.connect(func(q: float, _label: String) -> void: results.append(q))
 	station.start(rng)
-	_check(not station.begin_pour(), "cannot pour before adding milk")
-	for i in 3:
-		station.add_next()
-	_check(station.begin_pour(), "can pour once milk is in")
+	_check(not station.begin_pour(), "cannot pour while the glass is filling")
+	station.update(TeaStation.FILL_SECONDS + 0.01)
+	_check(station.begin_pour(), "can pour once the glass is full")
 	while station.pour_height < (station.target.x + station.target.y) / 2.0:
 		station.update(0.01)
 	station.release_pour()
 	_check(results.size() == 1 and is_equal_approx(results[0], 1.0), "letting go in the green zone is a perfect pour")
 	station.start(rng)
-	for i in 3:
-		station.add_next()
+	station.update(TeaStation.FILL_SECONDS + 0.01)
 	station.begin_pour()
 	for i in 300:
 		station.update(0.01)
@@ -81,35 +100,76 @@ func _test_tea_pour() -> void:
 
 
 func _test_fryer() -> void:
-	var fryer := Fryer.new()
-	_check(fryer.drop() == 0, "first vadai goes in slot 0")
-	fryer.update(Fryer.GOLDEN_AT + 0.5)
-	_check(fryer.doneness(0) == Fryer.Doneness.GOLDEN, "vadai turns golden")
-	fryer.update(Fryer.BURNT_AT)
-	_check(fryer.doneness(0) == Fryer.Doneness.BURNT, "vadai burns if left too long")
-	_check(fryer.take(0) == Fryer.Doneness.BURNT and fryer.free_slot() == 0, "taking empties the slot")
+	var state := KadaiState.new()
+	state.buy("batter")
+	state.buy("oil")
+	var service := Service.new(state, 3)
+	var batter := int(state.stock["batter"])
+	service.fry_press()
+	_check(service.fryer.count == Fryer.BATCH, "one press fries a batch of %d" % Fryer.BATCH)
+	_check(int(state.stock["batter"]) == batter - Fryer.BATCH, "the batch uses batter for each vadai")
+	service.fryer.update(Fryer.GOLDEN_AT + 0.5)
+	_check(service.fryer.doneness() == Fryer.Doneness.GOLDEN, "the batch turns golden")
+	service.fry_press()
+	_check(service.fryer.is_empty(), "the second press lifts the batch out")
+	_check(service.ready_count("vadai") == Fryer.BATCH, "golden vadai wait warm on the plate")
+	service.fry_press()
+	service.fryer.update(Fryer.BURNT_AT + 1.0)
+	service.fry_press()
+	_check(service.ready_count("vadai") == Fryer.BATCH and int(state.today["wasted"]) == Fryer.BATCH,
+		"a burnt batch is thrown away")
+
+
+func _customer(order: Dictionary, patience: float = 30.0) -> Dictionary:
+	return {
+		"type": "student", "order": order, "patience": patience, "patience_max": 35.0,
+		"grumpy": false, "bill": 0, "quality_sum": 0.0, "quality_n": 0,
+	}
 
 
 func _test_serving() -> void:
 	var state := KadaiState.new()
 	var service := Service.new(state, 7)
-	service.seats[0] = {
-		"type": "student", "order": {"tea": 1, "biscuit": 1},
-		"patience": 30.0, "patience_max": 35.0, "bill": 0, "quality_sum": 0.0, "quality_n": 0,
-	}
+	service.seats[0] = _customer({"tea": 1, "biscuit": 1})
 	var left: Array = []
 	service.customer_left.connect(func(_s: int, c: Dictionary, outcome: String) -> void: left.append([c, outcome]))
 	var money := state.money
 	service.serve(0)
 	_check(service.seats[0] != null, "partly served customer keeps waiting for their tea")
 	_check(state.money == money + 5, "biscuit is paid for when handed over")
-	service.tray.append({"item": "tea", "quality": 1.0})
+	service.ready["tea"].append(1.0)
 	_check(service.can_fill(0), "customer can be filled once tea is ready")
 	service.serve(0)
 	_check(service.seats[0] == null, "fully served customer leaves")
 	_check(left.size() == 1 and left[0][1] == "served", "customer leaves as served")
 	_check(int(state.today["served"]) == 1, "served count goes up")
-	_check(state.money >= money + 5 + 12, "tea is paid for")
+	_check(state.money > money + 5 + 12, "tea is paid for, with a tip for good service")
+
+
+func _test_nobody_walks_out() -> void:
+	var state := KadaiState.new()
+	var service := Service.new(state, 9)
+	service.seats[0] = _customer({"tea": 1}, 1.0)
+	for i in 200:
+		service._update_patience(0.5)
+	_check(service.seats[0] != null, "a customer who waits too long stays")
+	_check(service.seats[0]["grumpy"] and int(state.today["waited_long"]) == 1, "they grumble instead")
+	var money := state.money
+	service.ready["tea"].append(1.0)
+	service.serve(0)
+	_check(state.money == money + 12, "a grumpy customer still pays, but doesn't tip")
+
+
+func _test_running_out() -> void:
+	var state := KadaiState.new()
+	state.stock["bun"] = 0
+	var service := Service.new(state, 11)
+	service.seats[0] = _customer({"tea": 1, "bun": 1})
+	service.seats[1] = _customer({"bun": 1})
+	service._drop_unavailable()
+	_check(service.seats[0] != null and not service.seats[0]["order"].has("bun"), "customer skips what's sold out")
+	_check(service.seats[1] == null and int(state.today["out_of_stock"]) == 1,
+		"customer leaves if nothing they want is left")
 
 
 ## A simple bot plays a whole day. Checks that the loop runs to the end and a
@@ -118,6 +178,7 @@ func _test_bot_plays_a_full_day() -> void:
 	var state := KadaiState.new()
 	state.buy("batter")
 	state.buy("oil")
+	state.buy("milk")
 	state.buy("milk")
 	var service := Service.new(state, 42)
 	var ended := [false]
@@ -129,26 +190,25 @@ func _test_bot_plays_a_full_day() -> void:
 		_bot_turn(service)
 		service.update(step)
 	_check(ended[0], "the day ends")
-	_check(int(state.today["served"]) >= 20, "bot serves at least 20 customers, served %d" % state.today["served"])
+	_check(int(state.today["served"]) >= 25, "bot serves at least 25 customers, served %d" % state.today["served"])
 	_check(state.profit_today() > 0, "bot makes a profit, made %d" % state.profit_today())
-	print("Bot day: served %d, walked out %d, profit Rs %d" % [
-		state.today["served"], state.today["walked_out"], state.profit_today()])
+	print("Bot day: served %d, waited long %d, out of stock %d, no seat %d, profit Rs %d" % [
+		state.today["served"], state.today["waited_long"], state.today["out_of_stock"],
+		state.today["no_seat"], state.profit_today()])
 
 
 func _bot_turn(service: Service) -> void:
 	var tea := service.tea
 	if tea.stage == TeaStation.Stage.POURING:
 		if tea.pour_height >= tea.target.x + 0.02:
-			service.tea_pour_release()
+			service.tea_release()
 	elif tea.can_pour():
-		service.tea_pour_start()
-	elif service.tray_count("tea") < 3 and service.state.can_make("tea"):
-		service.tea_next()
-	for slot in Fryer.SLOTS:
-		if service.fryer.doneness(slot) == Fryer.Doneness.GOLDEN:
-			service.fry_take(slot)
-	if service.tray_count("vadai") + service.fryer.count_cooking() < 2:
-		service.fry_drop()
+		service.tea_press()
+	elif tea.stage == TeaStation.Stage.EMPTY and service.ready_count("tea") < 3 and service.state.can_make("tea"):
+		service.tea_press()
+	var fry := service.fryer.doneness()
+	if fry == Fryer.Doneness.GOLDEN or (fry == Fryer.Doneness.EMPTY and service.ready_count("vadai") < 2):
+		service.fry_press()
 	for seat in service.seats.size():
 		if service.can_fill(seat):
 			service.serve(seat)

@@ -1,14 +1,20 @@
 class_name Service
 extends RefCounted
 ## One live day at the kadai: customers arriving, the tea station, the fryer,
-## the ready tray, and serving. Holds no drawing or input code; screens call
+## the ready food, and serving. Holds no drawing or input code; screens call
 ## the action methods and listen to the signals.
+##
+## Nobody walks out. A customer who waits too long starts to grumble and won't
+## tip, but stays until served. If the kadai runs out of something they want,
+## they skip it, and leave only if nothing they wanted is left.
 
 signal customer_arrived(seat: int)
-## outcome is "served", "walked_out", or "closed".
+## outcome is "served", "out_of_stock", or "closed".
 signal customer_left(seat: int, customer: Dictionary, outcome: String)
 signal message(text: String)
 signal day_over
+
+const SUPPLY_CHECK_SECONDS := 1.0
 
 var state: KadaiState
 var clock := DayClock.new()
@@ -17,10 +23,12 @@ var fryer := Fryer.new()
 var rng := RandomNumberGenerator.new()
 ## One entry per seat: a customer Dictionary, or null when the seat is free.
 var seats: Array = []
-## Ready food waiting to be handed over: {"item": String, "quality": float}.
-var tray: Array[Dictionary] = []
+## Made food waiting to be handed over, as a list of qualities per item.
+var ready := {"tea": [], "vadai": []}
 var closed := false
 var _spawn_timer := 2.0
+var _supply_timer := SUPPLY_CHECK_SECONDS
+var _golden_told := false
 
 
 func _init(kadai: KadaiState, seed_value: int = -1) -> void:
@@ -41,6 +49,11 @@ func update(delta: float) -> void:
 	tea.update(delta)
 	fryer.update(delta)
 	_update_patience(delta)
+	_update_fryer_cue()
+	_supply_timer -= delta
+	if _supply_timer <= 0.0:
+		_supply_timer = SUPPLY_CHECK_SECONDS
+		_drop_unavailable()
 	_update_arrivals(delta)
 	if clock.is_over():
 		_close()
@@ -48,55 +61,31 @@ func update(delta: float) -> void:
 
 # --- Player actions -------------------------------------------------------
 
-## Does the next tea step: a new glass, then each ingredient.
-func tea_next() -> void:
-	if tea.stage == TeaStation.Stage.EMPTY:
-		if tray.size() >= Catalog.TRAY_SIZE:
-			message.emit("The tray is full. Serve someone first.")
-			return
-		if not state.use_recipe("tea"):
-			message.emit("Out of %s! Buy more tomorrow." % state.missing_for("tea").to_lower())
-			return
-		tea.start(rng)
-	elif not tea.add_next() and tea.can_pour():
-		message.emit("Hold %s to pour." % Controls.hint("tea_pour"))
+## Press: start a new glass, or start pouring a full one.
+func tea_press() -> void:
+	match tea.stage:
+		TeaStation.Stage.EMPTY:
+			if ready["tea"].size() >= int(Catalog.READY_CAPS["tea"]):
+				message.emit("The tray is full. Serve someone first.")
+			elif not state.use_recipe("tea"):
+				message.emit("Out of %s! Buy more tomorrow." % state.missing_for("tea").to_lower())
+			else:
+				tea.start(rng)
+		TeaStation.Stage.READY:
+			tea.begin_pour()
 
 
-func tea_pour_start() -> void:
-	tea.begin_pour()
-
-
-func tea_pour_release() -> void:
+## Release: let go of the pour.
+func tea_release() -> void:
 	tea.release_pour()
 
 
-func fry_drop() -> void:
-	if fryer.free_slot() < 0:
-		message.emit("The kadai is full.")
-		return
-	if not state.use_recipe("vadai"):
-		message.emit("Out of %s for vadai." % state.missing_for("vadai").to_lower())
-		return
-	fryer.drop()
-
-
-func fry_take(slot: int) -> void:
-	match fryer.doneness(slot):
-		Fryer.Doneness.EMPTY:
-			return
-		Fryer.Doneness.BURNT:
-			fryer.take(slot)
-			state.today["wasted"] += 1
-			message.emit("Burnt! That vadai goes to the crows.")
-		var done:
-			if tray.size() >= Catalog.TRAY_SIZE:
-				message.emit("The tray is full. Serve someone first.")
-				return
-			fryer.take(slot)
-			var golden: bool = done == Fryer.Doneness.GOLDEN
-			tray.append({"item": "vadai", "quality": 1.0 if golden else 0.5})
-			if not golden:
-				message.emit("A bit soggy, but it'll do.")
+## Drops a batch of vadai in, or lifts the batch out.
+func fry_press() -> void:
+	if fryer.is_empty():
+		_fry_drop()
+	else:
+		_fry_take()
 
 
 ## Hands over everything ready for the customer in this seat.
@@ -107,27 +96,24 @@ func serve(seat: int) -> void:
 	var order: Dictionary = customer["order"]
 	var handed := 0
 	for item in order.keys():
-		while int(order[item]) > 0 and _take_ready(item, customer):
+		while int(order[item]) > 0 and _hand_over(item, customer):
 			order[item] -= 1
 			handed += 1
 		if int(order[item]) == 0:
 			order.erase(item)
 	if order.is_empty():
 		_finish_customer(seat)
-	elif handed > 0:
-		customer["patience"] = minf(customer["patience"] + 8.0, customer["patience_max"])
-	else:
+	elif handed == 0:
 		message.emit("Nothing ready for them yet.")
 
 
 # --- Queries for screens --------------------------------------------------
 
-func tray_count(item: String) -> int:
-	var n := 0
-	for entry in tray:
-		if entry["item"] == item:
-			n += 1
-	return n
+## How many of an item could be handed over right now.
+func ready_count(item: String) -> int:
+	if Catalog.MENU[item]["made"]:
+		return ready[item].size()
+	return state.how_many(item)
 
 
 ## True when everything this customer wants is ready to hand over right now.
@@ -137,26 +123,67 @@ func can_fill(seat: int) -> bool:
 		return false
 	var order: Dictionary = customer["order"]
 	for item in order:
-		var ready := tray_count(item) if Catalog.MENU[item]["made"] else state.how_many(item)
-		if ready < int(order[item]):
+		if ready_count(item) < int(order[item]):
 			return false
 	return true
 
 
+func fry_action_text() -> String:
+	if not fryer.is_empty():
+		return "Lift them out"
+	return "Fry %d vadai" % _batch_size() if _batch_size() > 0 else "Fry vadai"
+
+
 # --- Internals ------------------------------------------------------------
 
-func _take_ready(item: String, customer: Dictionary) -> bool:
+func _batch_size() -> int:
+	var space: int = int(Catalog.READY_CAPS["vadai"]) - ready["vadai"].size()
+	return mini(Fryer.BATCH, mini(state.how_many("vadai"), space))
+
+
+func _fry_drop() -> void:
+	var amount := _batch_size()
+	if ready["vadai"].size() >= int(Catalog.READY_CAPS["vadai"]):
+		message.emit("The vadai plate is full.")
+		return
+	if amount <= 0:
+		message.emit("Out of %s for vadai." % state.missing_for("vadai").to_lower())
+		return
+	for i in amount:
+		state.use_recipe("vadai")
+	fryer.drop(amount)
+	_golden_told = false
+
+
+func _fry_take() -> void:
+	var batch := fryer.take()
+	var amount: int = batch["count"]
+	match batch["doneness"]:
+		Fryer.Doneness.BURNT:
+			state.today["wasted"] += amount
+			message.emit("Burnt! The crows get a feast.")
+		Fryer.Doneness.GOLDEN:
+			for i in amount:
+				ready["vadai"].append(1.0)
+			message.emit("%d crispy vadai!" % amount)
+		_:
+			for i in amount:
+				ready["vadai"].append(0.5)
+			message.emit("A bit soggy, but they'll do.")
+
+
+func _update_fryer_cue() -> void:
+	if not _golden_told and fryer.doneness() == Fryer.Doneness.GOLDEN:
+		_golden_told = true
+		message.emit("The vadai are golden. Lift them out!")
+
+
+func _hand_over(item: String, customer: Dictionary) -> bool:
 	var quality := 1.0
 	if Catalog.MENU[item]["made"]:
-		var index := -1
-		for i in tray.size():
-			if tray[i]["item"] == item:
-				index = i
-				break
-		if index < 0:
+		if ready[item].is_empty():
 			return false
-		quality = tray[index]["quality"]
-		tray.remove_at(index)
+		quality = ready[item].pop_front()
 	elif not state.use_recipe(item):
 		return false
 	customer["bill"] += state.record_sale(item)
@@ -171,7 +198,7 @@ func _finish_customer(seat: int) -> void:
 	var avg: float = customer["quality_sum"] / maxf(1.0, customer["quality_n"])
 	var calm: float = customer["patience"] / customer["patience_max"]
 	var tip := 0
-	if avg >= 0.7:
+	if not customer["grumpy"] and avg >= 0.7:
 		tip = roundi(float(kind["tip"]) * avg * (0.5 + calm))
 	state.record_tip(tip)
 	state.today["served"] += 1
@@ -182,15 +209,48 @@ func _finish_customer(seat: int) -> void:
 
 
 func _update_patience(delta: float) -> void:
+	for customer in seats:
+		if customer == null or customer["grumpy"]:
+			continue
+		customer["patience"] = maxf(0.0, customer["patience"] - delta)
+		if customer["patience"] <= 0.0:
+			customer["grumpy"] = true
+			state.today["waited_long"] += 1
+
+
+## Whether this item can still reach a customer today.
+func _can_supply(item: String) -> bool:
+	match item:
+		"tea":
+			return not ready["tea"].is_empty() or tea.stage != TeaStation.Stage.EMPTY or state.can_make("tea")
+		"vadai":
+			return not ready["vadai"].is_empty() or not fryer.is_empty() or state.can_make("vadai")
+		_:
+			return state.can_make(item)
+
+
+## Waiting customers skip anything the kadai has run out of.
+func _drop_unavailable() -> void:
 	for seat in seats.size():
 		var customer = seats[seat]
 		if customer == null:
 			continue
-		customer["patience"] -= delta
-		if customer["patience"] <= 0.0:
-			state.today["walked_out"] += 1
+		var order: Dictionary = customer["order"]
+		var skipped := ""
+		for item in order.keys():
+			if not _can_supply(item):
+				order.erase(item)
+				skipped = Catalog.MENU[item]["name"].to_lower()
+		if skipped == "":
+			continue
+		if not order.is_empty():
+			message.emit("No %s left. They'll skip it." % skipped)
+		elif int(customer["quality_n"]) > 0:
+			_finish_customer(seat)
+		else:
+			state.today["out_of_stock"] += 1
 			seats[seat] = null
-			customer_left.emit(seat, customer, "walked_out")
+			customer_left.emit(seat, customer, "out_of_stock")
 
 
 func _update_arrivals(delta: float) -> void:
@@ -218,22 +278,32 @@ func _arrive(type_id: String) -> void:
 			order[item] = 1
 	if order.is_empty():
 		order["tea"] = 1
-	var skipped: Array[String] = []
+	var too_costly := ""
+	var sold_out := ""
 	for item in order.keys():
-		if not _price_ok(item, kind):
+		var item_name: String = Catalog.MENU[item]["name"].to_lower()
+		if not _can_supply(item):
 			order.erase(item)
-			skipped.append(Catalog.MENU[item]["name"].to_lower())
+			sold_out = item_name
+		elif not _price_ok(item, kind):
+			order.erase(item)
+			too_costly = item_name
 	if order.is_empty():
-		state.today["too_costly"] += 1
-		message.emit("%s: \"%s at that price? No thanks.\"" % [kind["name"], skipped[0].capitalize()])
+		if too_costly != "":
+			state.today["too_costly"] += 1
+			message.emit("%s: \"%s at that price? No thanks.\"" % [kind["name"], too_costly.capitalize()])
+		else:
+			state.today["out_of_stock"] += 1
+			message.emit("%s wanted %s, but you're out." % [kind["name"], sold_out])
 		return
-	if not skipped.is_empty():
-		message.emit("%s skipped the %s. Too costly." % [kind["name"], skipped[0]])
+	if too_costly != "":
+		message.emit("%s skipped the %s. Too costly." % [kind["name"], too_costly])
 	seats[seat] = {
 		"type": type_id,
 		"order": order,
 		"patience": float(kind["patience"]),
 		"patience_max": float(kind["patience"]),
+		"grumpy": false,
 		"bill": 0,
 		"quality_sum": 0.0,
 		"quality_n": 0,
@@ -265,7 +335,7 @@ func _pick_weighted(weights: Dictionary) -> String:
 
 
 func _on_tea_poured(quality: float, label: String) -> void:
-	tray.append({"item": "tea", "quality": quality})
+	ready["tea"].append(quality)
 	message.emit(label)
 
 
@@ -277,5 +347,5 @@ func _close() -> void:
 		if customer != null:
 			seats[seat] = null
 			customer_left.emit(seat, customer, "closed")
-	state.today["wasted"] += tray.size() + fryer.count_cooking()
+	state.today["wasted"] += ready["tea"].size() + ready["vadai"].size() + fryer.count
 	day_over.emit()

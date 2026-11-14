@@ -133,6 +133,46 @@ Goal: prove that a single day is fun.
 - iOS and Android with touch controls
 - PS5 with controller support, through a porting partner
 
+## Playtest 1 notes (2026-11-14)
+
+Played part of a service day.
+
+- **Felt:** stressful. The pace of customers was about right, but everything competed for attention.
+- **Why:** draining patience bars and walkouts, too much to juggle, too many keys, hard to read (small bubbles, busy bottom panels, the whole game small on screen).
+- **Tea:** four presses before every pour was too many steps. The pour itself was enjoyable.
+- **Vadai:** didn't really get tried.
+- **Liked:** the street scene, the pour, earning money, the morning market.
+- **Look:** wants real pixel art soon.
+
+### Decisions
+
+- Tea is one press to prepare the glass, then the pour.
+- No walkouts. A customer who waits too long grumbles and tips nothing, but still pays.
+- Vadai fry in batches of four with one timing moment, then stay warm on a plate.
+- Mouse first. Space (tea), F (vadai), 1 to 4 (serve) and P (pause) are optional shortcuts.
+- Claude makes the pixel art as small hand-authored PNG sprites.
+
+## Next up
+
+In order:
+
+1. **Calm-down pass:** the decisions above, bigger bubbles, a simpler bottom panel, and a window that isn't tiny on Retina screens.
+2. **Sound:** pour splash, oil sizzle, coins, crows, auto horns, and a gentle music loop that changes with the time of day.
+3. **First regular:** one auto driver with a name, a usual order ("strong, less sugar"), and a few lines of story over the week.
+4. **Save + Mac build:** days save between sessions, plus a double-clickable `.app`.
+5. **Pixel art pass:** sprites for people, the stall, and props, replacing the drawn shapes.
+
+### Ideas parked for later
+
+- **Rain shower:** a sudden rain mid-day brings a rush of tea drinkers who huddle under the awning.
+- **Radio on the shelf:** click to switch stations. Pure mood, no pressure.
+- **Afternoon chit-chat:** in the quiet afternoon, customers linger and gossip in speech bubbles. This is where stories and events start.
+- **Tip jar:** a jar on the counter that fills up as you earn tips.
+- **Night upgrades:** spend profit on a fan (customers stay calm longer), a bench (one more seat), or a tube light (busier evenings).
+- **Pour streaks:** a little celebration for three perfect pours in a row.
+- **The milkman:** a vendor on a bicycle at the morning market instead of a plain list.
+- **End-of-day photo:** a snapshot of your kadai at closing, to share.
+
 ## Open questions for later
 
 - Does the radio play original songs, talk shows, cricket commentary, or a mix?

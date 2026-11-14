@@ -9,10 +9,31 @@ var _screen: Control
 func _ready() -> void:
 	Controls.setup()
 	theme = Style.make_theme()
+	_fit_window()
 	if "--service" in OS.get_cmdline_user_args():
 		_show_service()
 	else:
 		_show_morning()
+
+
+## Opens the window as large as the screen allows at a whole-number scale, so
+## pixels stay crisp. Window sizes are in physical pixels, so without this a
+## Retina Mac shows the game at half size.
+func _fit_window() -> void:
+	if DisplayServer.get_name() == "headless" or Engine.get_write_movie_path() != "":
+		return
+	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
+		return
+	var screen := DisplayServer.window_get_current_screen()
+	var usable := DisplayServer.screen_get_usable_rect(screen)
+	var base := Vector2(
+		ProjectSettings.get_setting("display/window/size/viewport_width"),
+		ProjectSettings.get_setting("display/window/size/viewport_height"))
+	var fit := floori(minf(usable.size.x * 0.92 / base.x, usable.size.y * 0.88 / base.y))
+	var scale := maxi(1, fit)
+	var window_size := Vector2i(base * scale)
+	DisplayServer.window_set_size(window_size)
+	DisplayServer.window_set_position(usable.position + (usable.size - window_size) / 2)
 
 
 func _swap(next: Control) -> void:

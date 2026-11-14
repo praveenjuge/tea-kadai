@@ -52,9 +52,12 @@ func on_left(seat: int, customer: Dictionary, outcome: String) -> void:
 	if outcome == "served":
 		text = "+%s" % Style.rupees(int(customer["bill"]) + int(customer.get("tip", 0)))
 		color = Style.GOOD
-	elif outcome == "walked_out":
-		text = "Too slow, anna!"
-		color = Style.BAD
+		if customer["grumpy"]:
+			text += " Finally!"
+			color = Style.WARN
+	elif outcome == "out_of_stock":
+		text = "Nothing left? Okay…"
+		color = Style.MUTED
 	_leavers.append({"type": customer["type"], "tile": SEAT_TILES[seat], "t": 0.0, "text": text, "color": color})
 
 
@@ -86,7 +89,12 @@ func _seat_at(point: Vector2) -> int:
 		if _service.seats[seat] == null or _arrive[seat] < 1.0:
 			continue
 		var feet := _iso(SEAT_TILES[seat])
-		if Rect2(feet + Vector2(-14, -52), Vector2(28, 54)).has_point(point):
+		var order: Dictionary = _service.seats[seat]["order"]
+		var items := 0
+		for item in order:
+			items += int(order[item])
+		var body := Rect2(feet + Vector2(-10, -32), Vector2(20, 34))
+		if body.has_point(point) or _bubble_box(seat, items).grow(2.0).has_point(point):
 			return seat
 	return -1
 
@@ -197,10 +205,16 @@ func _draw_counter_things() -> void:
 		if fill > 0:
 			draw_rect(Rect2(jar + Vector2(-3, -fill), Vector2(6, fill)), Color("d9a55b"))
 		draw_rect(Rect2(jar + Vector2(-4, -14), Vector2(8, 2)), Color("e0604e"))
-	# Ready tray along the middle of the counter.
-	for i in _service.tray.size():
-		var entry: Dictionary = _service.tray[i]
-		Style.draw_item(self, entry["item"], _iso(Vector2(2.9 + i * 0.42, 1.6), 26), entry["quality"])
+	# Ready tea glasses along the middle of the counter, vadai piled on a plate.
+	var teas: Array = _service.ready["tea"]
+	for i in teas.size():
+		Style.draw_item(self, "tea", _iso(Vector2(2.7 + i * 0.36, 1.6), 26), teas[i])
+	var vadai: Array = _service.ready["vadai"]
+	if not vadai.is_empty():
+		var plate := _iso(Vector2(5.0, 1.6), 21)
+		draw_rect(Rect2(plate + Vector2(-9, -1), Vector2(18, 3)), Color("d8dde3"))
+		for i in vadai.size():
+			Style.draw_item(self, "vadai", plate + Vector2(-5 + (i % 3) * 5, -4 - (i / 3) * 4), vadai[i])
 	# Stove and big milk pot with steam on the right.
 	var stove := _iso(Vector2(5.9, 1.6), 20)
 	draw_rect(Rect2(stove + Vector2(-9, -4), Vector2(18, 4)), Color("2b2b2b"))
@@ -234,22 +248,34 @@ func _draw_bubble(seat: int, customer: Dictionary) -> void:
 	for item in Catalog.MENU_ORDER:
 		for i in int(order.get(item, 0)):
 			items.append(item)
-	# Kept 15px tall so neighbouring seats' bubbles step down without overlapping.
-	var width := 11.0 + items.size() * 11.0
+	var box := _bubble_box(seat, items.size())
 	var feet := _iso(SEAT_TILES[seat]).round()
-	var box := Rect2(feet + Vector2(-width / 2.0, -46), Vector2(width, 13))
 	var ready := _service.can_fill(seat)
+	var grumpy: bool = customer["grumpy"]
+	draw_line(Vector2(feet.x, box.end.y), feet + Vector2(0, -30), Style.TEXT, 1.0)
 	draw_rect(box, Style.TEXT)
 	if ready:
 		draw_rect(box.grow(1.0), Style.GOOD, false, 2.0)
-	draw_colored_polygon(PackedVector2Array([feet + Vector2(-2, -31), feet + Vector2(2, -31), feet + Vector2(0, -29)]), Style.TEXT)
-	_text(box.position + Vector2(2, 10), str(seat + 1), Style.LINE, HORIZONTAL_ALIGNMENT_LEFT, 8)
+	elif grumpy:
+		draw_rect(box.grow(1.0), Style.BAD, false, 2.0)
+	_text(box.position + Vector2(4, 17), str(seat + 1), Style.LINE, HORIZONTAL_ALIGNMENT_LEFT)
 	for i in items.size():
-		Style.draw_item(self, items[i], box.position + Vector2(14 + i * 11, 7))
+		draw_set_transform(box.position + Vector2(24 + i * 20, 13), 0.0, Vector2(2, 2))
+		Style.draw_item(self, items[i], Vector2.ZERO)
+	draw_set_transform(Vector2.ZERO)
 	var calm: float = customer["patience"] / customer["patience_max"]
 	var bar_color := Style.GOOD if calm > 0.5 else (Style.WARN if calm > 0.25 else Style.BAD)
-	draw_rect(Rect2(box.position + Vector2(0, 13), Vector2(width, 2)), Color(0, 0, 0, 0.5))
-	draw_rect(Rect2(box.position + Vector2(0, 13), Vector2(width * calm, 2)), bar_color)
+	draw_rect(Rect2(box.position + Vector2(0, box.size.y), Vector2(box.size.x, 3)), Color(0, 0, 0, 0.5))
+	draw_rect(Rect2(box.position + Vector2(0, box.size.y), Vector2(box.size.x * calm, 3)), bar_color)
+
+
+## The order bubble above a seat. Odd seats sit higher so neighbouring bubbles
+## never overlap, even at the bigger icon size.
+func _bubble_box(seat: int, item_count: int) -> Rect2:
+	var width := 18.0 + item_count * 20.0
+	var lift := 42.0 if seat % 2 == 1 else 0.0
+	var feet := _iso(SEAT_TILES[seat]).round()
+	return Rect2(feet + Vector2(-width / 2.0, -60.0 - lift), Vector2(width, 26))
 
 
 func _draw_tree(tile: Vector2) -> void:

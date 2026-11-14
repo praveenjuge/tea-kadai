@@ -23,20 +23,21 @@ Or open the folder in the Godot editor and press Play.
 ## How a day works
 
 1. **Morning:** buy milk, tea powder, sugar, batter, oil, biscuits and buns, and set your prices. The game is paused while you plan.
-2. **Service (about 11 minutes):** morning rush, quiet afternoon, evening rush, closing time. Customers stand at the counter with what they want in a bubble. When the bubble border turns green, everything they want is ready.
-3. **Night:** see what you sold, your tips, your profit, and who walked off.
+2. **Service (about 11 minutes):** morning rush, quiet afternoon, evening rush, closing time. Customers stand at the counter with what they want in a bubble. When the bubble border turns green, everything they want is ready. Nobody walks out: people who wait too long grumble (red border) and skip the tip, but still pay. If you run out of something, they skip it.
+3. **Night:** see what you sold, your tips, your profit, and who waited too long.
 
 You can't lose. A bad day just means less money for tomorrow.
 
 ## Controls
 
+The game is mouse first. Keys are optional shortcuts.
+
 | Action | Mouse | Key |
 | --- | --- | --- |
-| New glass, then decoction, sugar, milk | Tea button | T |
-| Pour (hold, let go in the green) | Hold Pour | Hold Space |
-| Drop a vadai in the oil | Drop vadai | F |
-| Lift a vadai out (golden is best) | Click the vadai | Z, X, C |
-| Serve a customer | Click them | 1 to 4 |
+| Make a glass of tea | Press Make tea | Space |
+| Pour (hold, let go in the green) | Hold the tea button | Hold Space |
+| Fry a batch of 4 vadai, then lift them out when golden | Fry button, or click the kadai | F |
+| Serve a customer | Click them or their bubble | 1 to 4 |
 | Pause | | P |
 
 All input goes through named actions in `scripts/core/controls.gd`, so touch and controller support can be added there later.

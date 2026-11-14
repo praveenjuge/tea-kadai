@@ -43,6 +43,7 @@ const MAX_PRICE := 60
 ## Regulars come later. These are the kinds of people who stop by on day one.
 ## "wants" is the chance they order each item. "price_sense" is how much a
 ## price above the usual one puts them off. "tip" is the most they tip.
+## "patience" is how many seconds they wait happily before they start to grumble.
 const CUSTOMERS := {
 	"auto_driver": {
 		"name": "Auto driver", "patience": 40.0, "tip": 3, "price_sense": 0.9,
@@ -100,7 +101,8 @@ const PHASES := [
 const LAST_ARRIVAL_MINUTE := 1290
 
 const SEATS := 4
-const TRAY_SIZE := 6
+## How many made items can wait ready at once: glasses on the tray, vadai on the plate.
+const READY_CAPS := {"tea": 6, "vadai": 8}
 
 
 ## What one unit of a menu item costs you in stock, in rupees.

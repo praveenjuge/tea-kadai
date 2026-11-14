@@ -28,7 +28,7 @@ func next_day() -> void:
 func _reset_today() -> void:
 	today = {
 		"revenue": 0, "tips": 0, "spent": 0,
-		"served": 0, "walked_out": 0, "too_costly": 0, "no_seat": 0, "wasted": 0,
+		"served": 0, "waited_long": 0, "out_of_stock": 0, "too_costly": 0, "no_seat": 0, "wasted": 0,
 		"sold": {}, "bought": {},
 	}
 

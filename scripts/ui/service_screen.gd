@@ -19,6 +19,7 @@ var _phase: Label
 var _money: Label
 var _toast: Label
 var _toast_left := 0.0
+var _hint: Label
 var _pause_cover: ColorRect
 var _paused := false
 
@@ -40,8 +41,21 @@ func _ready() -> void:
 	_street.seat_clicked.connect(_on_seat_clicked)
 	root.add_child(_street)
 
+	# First-day hint along the bottom of the street, until the first sale.
+	_hint = Style.label("Make tea, then hold the button to pour and let go in the green. Click a customer to serve them.")
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
+	_hint.offset_top = -18
+	_hint.offset_bottom = -4
+	_hint.add_theme_color_override("font_outline_color", Style.BG)
+	_hint.add_theme_constant_override("outline_size", 4)
+	_hint.mouse_filter = MOUSE_FILTER_IGNORE
+	_hint.visible = _state.day == 1
+	_street.add_child(_hint)
+
 	var stations := HBoxContainer.new()
 	stations.add_theme_constant_override("separation", 0)
+	stations.custom_minimum_size.y = 118
 	_tea_panel = TeaPanel.new(_service)
 	_fryer_panel = FryerPanel.new(_service)
 	_tray_panel = TrayPanel.new(_service)
@@ -102,6 +116,8 @@ func _process(delta: float) -> void:
 	_tea_panel.refresh()
 	_fryer_panel.refresh()
 	_tray_panel.refresh()
+	if _hint.visible and int(_state.today["served"]) > 0:
+		_hint.visible = false
 	_toast_left = maxf(0.0, _toast_left - delta)
 	_toast.modulate.a = clampf(_toast_left / 0.5, 0.0, 1.0)
 
@@ -111,23 +127,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		_paused = not _paused
 		_pause_cover.visible = _paused
 		if _paused:
-			_service.tea_pour_release()
+			_service.tea_release()
 		get_viewport().set_input_as_handled()
 		return
 	if _paused or _service.closed:
 		return
-	if event.is_action_released("tea_pour"):
-		_service.tea_pour_release()
-	elif event.is_action_pressed("tea_pour"):
-		_service.tea_pour_start()
-	elif event.is_action_pressed("tea_next"):
-		_service.tea_next()
-	elif event.is_action_pressed("fry_drop"):
-		_service.fry_drop()
+	if event.is_action_released("tea"):
+		_service.tea_release()
+	elif event.is_action_pressed("tea"):
+		_service.tea_press()
+	elif event.is_action_pressed("fry"):
+		_service.fry_press()
 	else:
-		for i in Fryer.SLOTS:
-			if event.is_action_pressed("fry_take_%d" % (i + 1)):
-				_service.fry_take(i)
 		for i in Catalog.SEATS:
 			if event.is_action_pressed("serve_%d" % (i + 1)):
 				_service.serve(i)

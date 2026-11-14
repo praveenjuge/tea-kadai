@@ -62,13 +62,17 @@ func _service() -> void:
 	_key(KEY_P, true)
 	_key(KEY_P, false)
 
-	# One glass of tea with the keyboard, poured in the green.
-	for i in 4:
-		_tap(KEY_T)
-		await _frames(2)
-	_check(service.tea.can_pour(), "T four times gets the glass ready to pour")
-	_key(KEY_SPACE, true)
+	# One glass of tea with the keyboard: one press fills it, then hold to pour.
+	_tap(KEY_SPACE)
+	await _frames(2)
+	_check(service.tea.stage == TeaStation.Stage.FILLING, "one press of Space starts a glass")
 	var guard := 0
+	while not service.tea.can_pour() and guard < 300:
+		guard += 1
+		await process_frame
+	_check(service.tea.can_pour(), "the glass fills by itself")
+	_key(KEY_SPACE, true)
+	guard = 0
 	while service.tea.stage == TeaStation.Stage.POURING and guard < 600:
 		guard += 1
 		var mid := (service.tea.target.x + service.tea.target.y) / 2.0
@@ -77,22 +81,37 @@ func _service() -> void:
 		await process_frame
 	_key(KEY_SPACE, false)
 	await _frames(2)
-	_check(service.tray_count("tea") == 1, "the poured tea lands on the tray")
-	_check(service.tray.size() > 0 and service.tray[0]["quality"] >= 1.0, "letting go in the green gives a perfect pour")
+	_check(service.ready_count("tea") == 1, "the poured tea lands on the tray")
+	_check(service.ready["tea"].size() > 0 and service.ready["tea"][0] >= 1.0, "letting go in the green gives a perfect pour")
 
-	# One vadai with the mouse: drop it, wait for golden, click it out.
-	_click(_find_button(screen._fryer_panel, "Drop vadai"))
+	# A batch of vadai with the mouse: click Fry, wait for golden, click the kadai.
+	_click(_find_button(screen._fryer_panel, "Fry"))
 	await _frames(2)
-	_check(service.fryer.count_cooking() == 1, "clicking Drop vadai starts frying")
+	_check(service.fryer.count == Fryer.BATCH, "clicking Fry drops a whole batch in")
 	Engine.time_scale = PLAY_SPEED
 	guard = 0
-	while service.fryer.doneness(0) != Fryer.Doneness.GOLDEN and guard < 2000:
+	while service.fryer.doneness() != Fryer.Doneness.GOLDEN and guard < 2000:
 		guard += 1
 		await process_frame
-	var art = screen._fryer_panel._art
-	_click_at(art.get_global_rect().position + art.slot_center(0))
+	_click(screen._fryer_panel._art)
 	await _frames(2)
-	_check(service.tray_count("vadai") == 1, "clicking a golden vadai lifts it onto the tray")
+	_check(service.ready_count("vadai") == Fryer.BATCH, "clicking the kadai lifts the golden batch onto the plate")
+
+	# The tea button with the mouse: press to fill, hold to pour.
+	var tea_button := _find_button(screen._tea_panel, "Make tea")
+	_click(tea_button)
+	guard = 0
+	while not service.tea.can_pour() and guard < 300:
+		guard += 1
+		await process_frame
+	_mouse(tea_button.get_global_rect().get_center(), true)
+	guard = 0
+	while service.tea.pour_height < service.tea.target.x + 0.03 and guard < 600:
+		guard += 1
+		await process_frame
+	_mouse(tea_button.get_global_rect().get_center(), false)
+	await _frames(2)
+	_check(service.ready_count("tea") == 2, "holding the tea button pours a second glass")
 
 	# Play on: keep making what people want and click them to serve.
 	guard = 0
@@ -130,17 +149,20 @@ func _play_turn(screen: ServiceScreen, service: Service) -> void:
 			_key(KEY_SPACE, false)
 	elif tea.can_pour():
 		_key(KEY_SPACE, true)
-	elif service.tray_count("tea") < 2 and service.state.can_make("tea") and service.tray.size() < Catalog.TRAY_SIZE - 1:
-		_tap(KEY_T)
-	for slot in Fryer.SLOTS:
-		if service.fryer.doneness(slot) == Fryer.Doneness.GOLDEN:
-			_tap([KEY_Z, KEY_X, KEY_C][slot])
-	if service.tray_count("vadai") + service.fryer.count_cooking() < 2:
+	elif tea.stage == TeaStation.Stage.EMPTY and service.ready_count("tea") < 2 and service.state.can_make("tea"):
+		_tap(KEY_SPACE)
+	var fry := service.fryer.doneness()
+	if fry == Fryer.Doneness.GOLDEN or (fry == Fryer.Doneness.EMPTY and service.ready_count("vadai") < 2):
 		_tap(KEY_F)
+	var street: StreetView = screen._street
 	for seat in Catalog.SEATS:
-		if service.can_fill(seat) and screen._street._arrive[seat] >= 1.0:
-			var street: StreetView = screen._street
-			_click_at(street.get_global_rect().position + street._iso(StreetView.SEAT_TILES[seat]) + Vector2(0, -14))
+		if service.can_fill(seat) and street._arrive[seat] >= 1.0:
+			# Alternate between clicking the person and clicking their bubble.
+			var feet := street._iso(StreetView.SEAT_TILES[seat])
+			var target := feet + Vector2(0, -14)
+			if seat % 2 == 1:
+				target = street._bubble_box(seat, 1).get_center()
+			_click_at(street.get_global_rect().position + target)
 	await process_frame
 
 
@@ -153,13 +175,17 @@ func _click(control: Control) -> void:
 
 
 func _click_at(at: Vector2) -> void:
-	for pressed in [true, false]:
-		var event := InputEventMouseButton.new()
-		event.button_index = MOUSE_BUTTON_LEFT
-		event.pressed = pressed
-		event.position = at
-		event.global_position = at
-		root.push_input(event, true)
+	_mouse(at, true)
+	_mouse(at, false)
+
+
+func _mouse(at: Vector2, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	event.position = at
+	event.global_position = at
+	root.push_input(event, true)
 
 
 func _key(key: Key, pressed: bool) -> void:

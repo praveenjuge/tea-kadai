@@ -1,13 +1,15 @@
 class_name TeaStation
 extends RefCounted
-## Makes one glass of tea at a time: decoction, sugar, milk, then the long pour.
-## The pour is the skill part: hold to pull the tumbler up, and let go while
-## the stream is in the green zone for a good froth.
+## Makes one glass of tea at a time. One press fills the glass with decoction,
+## sugar and milk; then comes the pour, the skill part. Hold to pull the
+## tumbler up and let go while the stream is in the green zone.
 
 signal poured(quality: float, label: String)
 
-enum Stage { EMPTY, GLASS, DECOCTION, SUGAR, MILK, POURING }
+enum Stage { EMPTY, FILLING, READY, POURING }
 
+## Seconds the glass takes to fill after pressing.
+const FILL_SECONDS := 0.5
 ## Seconds of holding to pull the tumbler all the way up and spill.
 const POUR_SECONDS := 1.5
 const TARGET_WIDTH := 0.17
@@ -17,49 +19,40 @@ var stage := Stage.EMPTY
 var pour_height := 0.0
 ## Low and high edge of the green zone on the pour meter.
 var target := Vector2(0.6, 0.6 + TARGET_WIDTH)
+var _fill_time := 0.0
 var _pour_time := 0.0
 
 
-## Text for the button that does the next step.
-func next_action() -> String:
+## Text for the tea button.
+func action_text() -> String:
 	match stage:
 		Stage.EMPTY:
-			return "New glass"
-		Stage.GLASS:
-			return "Decoction"
-		Stage.DECOCTION:
-			return "Sugar"
-		Stage.SUGAR:
-			return "Milk"
-		Stage.MILK:
-			return "Now pour!"
+			return "Make tea"
+		Stage.FILLING:
+			return "Filling…"
+		Stage.READY:
+			return "Hold to pour"
 		_:
-			return "Let go in green"
+			return "Let go in green!"
 
 
-## Places a new glass. The caller takes the stock for it first.
+## 0 to 1 while the glass fills, 1 once it's full.
+func fill_progress() -> float:
+	if stage == Stage.FILLING:
+		return _fill_time / FILL_SECONDS
+	return 0.0 if stage == Stage.EMPTY else 1.0
+
+
+## Starts filling a new glass. The caller takes the stock for it first.
 func start(rng: RandomNumberGenerator) -> void:
-	stage = Stage.GLASS
+	stage = Stage.FILLING
+	_fill_time = 0.0
 	var low := rng.randf_range(0.5, 0.7)
 	target = Vector2(low, low + TARGET_WIDTH)
 
 
-## Adds the next ingredient. Returns false when there is nothing to add.
-func add_next() -> bool:
-	match stage:
-		Stage.GLASS:
-			stage = Stage.DECOCTION
-		Stage.DECOCTION:
-			stage = Stage.SUGAR
-		Stage.SUGAR:
-			stage = Stage.MILK
-		_:
-			return false
-	return true
-
-
 func can_pour() -> bool:
-	return stage == Stage.MILK
+	return stage == Stage.READY
 
 
 func begin_pour() -> bool:
@@ -77,14 +70,17 @@ func release_pour() -> void:
 
 
 func update(delta: float) -> void:
-	if stage != Stage.POURING:
-		return
-	_pour_time += delta
-	# Speeds up near the top, so a long pour needs a steady hand.
-	pour_height = pow(_pour_time / POUR_SECONDS, 1.4)
-	if pour_height >= 1.0:
-		pour_height = 1.0
-		_finish()
+	if stage == Stage.FILLING:
+		_fill_time += delta
+		if _fill_time >= FILL_SECONDS:
+			stage = Stage.READY
+	elif stage == Stage.POURING:
+		_pour_time += delta
+		# Speeds up near the top, so a long pour needs a steady hand.
+		pour_height = pow(_pour_time / POUR_SECONDS, 1.4)
+		if pour_height >= 1.0:
+			pour_height = 1.0
+			_finish()
 
 
 func _finish() -> void:

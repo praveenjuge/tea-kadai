@@ -44,8 +44,10 @@ func _ready() -> void:
 	box.add_child(HSeparator.new())
 
 	var people := "Served %d" % today["served"]
-	if int(today["walked_out"]) > 0:
-		people += " · %d walked off" % today["walked_out"]
+	if int(today["waited_long"]) > 0:
+		people += " · %d waited too long" % today["waited_long"]
+	if int(today["out_of_stock"]) > 0:
+		people += " · %d left when you ran out" % today["out_of_stock"]
 	if int(today["too_costly"]) > 0:
 		people += " · %d said too costly" % today["too_costly"]
 	if int(today["no_seat"]) > 0:
@@ -69,7 +71,7 @@ func _row(grid: GridContainer, title: String, value: String, color: Color = Styl
 
 func _street_word(today: Dictionary) -> String:
 	var served := int(today["served"])
-	var lost := int(today["walked_out"]) + int(today["no_seat"])
+	var lost := int(today["waited_long"]) + int(today["out_of_stock"]) + int(today["no_seat"])
 	if served == 0:
 		return "A quiet day. The crows had the street to themselves."
 	if lost == 0:
