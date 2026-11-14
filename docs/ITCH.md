@@ -1,6 +1,6 @@
 # Putting Tea Kadai on itch.io
 
-Once two settings are in place, every release also goes to itch.io, through [butler](https://itch.io/docs/butler/), itch's upload tool. Until then the step skips itself.
+Every release also goes to [praveenjuge.itch.io/tea-kadai](https://praveenjuge.itch.io/tea-kadai), through [butler](https://itch.io/docs/butler/), itch's upload tool, on three channels: `mac`, `windows` and `linux`. The page, its cover and screenshots (from `docs/itch/`), theme, and the `BUTLER_API_KEY` secret and `ITCH_GAME` variable are all set up. The steps below are how it was done, for reference.
 
 ## Set it up
 
