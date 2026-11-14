@@ -6,28 +6,33 @@ extends RefCounted
 ## What the kadai sells. "price" is the usual street price customers expect.
 const MENU := {
 	"tea": {"name": "Tea", "price": 12, "made": true},
+	"ginger_tea": {"name": "Ginger tea", "price": 15, "made": true, "learned": true},
 	"vadai": {"name": "Vadai", "price": 10, "made": true},
 	"biscuit": {"name": "Biscuit", "price": 5, "made": false},
 	"bun": {"name": "Bun", "price": 15, "made": false},
 }
-const MENU_ORDER: Array[String] = ["tea", "vadai", "biscuit", "bun"]
+const MENU_ORDER: Array[String] = ["tea", "ginger_tea", "vadai", "biscuit", "bun"]
+## Glasses made at the tea station and carried on the tray.
+const GLASSES: Array[String] = ["tea", "ginger_tea"]
 
 ## Market packs bought each morning. One pack adds "gives" units of stock.
 const MARKET := {
 	"milk": {"name": "Milk", "pack": "1 litre", "gives": 12, "unit": "glasses", "cost": 60},
-	"tea_powder": {"name": "Tea powder", "pack": "Pouch", "gives": 25, "unit": "glasses", "cost": 50},
+	"tea_powder": {"name": "Tea powder", "short": "Tea dust", "pack": "Pouch", "gives": 25, "unit": "glasses", "cost": 50},
 	"sugar": {"name": "Sugar", "pack": "1 kg", "gives": 40, "unit": "glasses", "cost": 45},
-	"batter": {"name": "Vadai batter", "pack": "Tub", "gives": 15, "unit": "vadai", "cost": 48},
+	"ginger": {"name": "Ginger", "pack": "100 g", "gives": 20, "unit": "glasses", "cost": 30, "for": "ginger_tea"},
+	"batter": {"name": "Vadai batter", "short": "Batter", "pack": "Tub", "gives": 15, "unit": "vadai", "cost": 48},
 	"oil": {"name": "Oil", "pack": "1 litre", "gives": 50, "unit": "vadai", "cost": 140},
 	"biscuit": {"name": "Biscuits", "pack": "Jar", "gives": 20, "unit": "biscuits", "cost": 60},
 	"bun": {"name": "Buns", "pack": "Pack of 6", "gives": 6, "unit": "buns", "cost": 48},
 }
-const MARKET_ORDER: Array[String] = ["milk", "tea_powder", "sugar", "batter", "oil", "biscuit", "bun"]
+const MARKET_ORDER: Array[String] = ["milk", "tea_powder", "sugar", "ginger", "batter", "oil", "biscuit", "bun"]
 
 ## Stock each menu item uses. Made items use it when you start making them;
 ## packaged items use it when you hand them over.
 const RECIPES := {
 	"tea": {"milk": 1, "tea_powder": 1, "sugar": 1},
+	"ginger_tea": {"milk": 1, "tea_powder": 1, "sugar": 1, "ginger": 1},
 	"vadai": {"batter": 1, "oil": 1},
 	"biscuit": {"biscuit": 1},
 	"bun": {"bun": 1},
@@ -35,7 +40,7 @@ const RECIPES := {
 
 const START_MONEY := 300
 const START_STOCK := {
-	"milk": 12, "tea_powder": 25, "sugar": 40,
+	"milk": 12, "tea_powder": 25, "sugar": 40, "ginger": 0,
 	"batter": 0, "oil": 0, "biscuit": 10, "bun": 0,
 }
 const MAX_PRICE := 60
@@ -108,8 +113,98 @@ static func pace_for_day(day: int) -> float:
 	return DAY_PACE[clampi(day - 1, 0, DAY_PACE.size() - 1)]
 
 const SEATS := 4
-## How many made items can wait ready at once: glasses on the tray, vadai on the plate.
-const READY_CAPS := {"tea": 6, "vadai": 8}
+## How many glasses fit on the tray, and how many vadai on the plate.
+const TRAY_GLASSES := 6
+const VADAI_PLATE := 8
+## Customers who order tea ask for ginger tea instead this often, once it's learned.
+const GINGER_SHARE := 0.3
+
+## Things to save up for, bought on the night screen.
+const UPGRADES := {
+	"bench": {"name": "Bench", "cost": 350, "about": "Room for one more customer at the counter."},
+	"pot": {"name": "Bigger milk pot", "cost": 450, "about": "Glasses fill twice as fast."},
+	"fan": {"name": "Table fan", "cost": 600, "about": "Customers stay patient much longer."},
+	"sign": {"name": "Lit signboard", "cost": 900, "about": "More customers find you in the evening."},
+}
+const UPGRADE_ORDER: Array[String] = ["bench", "pot", "fan", "sign"]
+const FAN_PATIENCE := 1.5
+const SIGN_EVENING_PACE := 0.75
+
+## Day 1 is Monday 3 November, in the northeast monsoon.
+const START_DATE := {"year": 2025, "month": 11, "day": 3}
+const WEEKDAYS: Array[String] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+const MONTHS: Array[String] = ["January", "February", "March", "April", "May", "June", "July",
+	"August", "September", "October", "November", "December"]
+## About one day in three gets a shower. Never on day 1.
+const RAIN_CHANCE := 0.34
+const RAIN_PACE := 0.7
+
+## The morning paper. One headline a day, in order.
+const HEADLINES: Array[String] = [
+	"Metro work on the main road to finish \"very soon\", officials say again",
+	"Jasmine prices touch a record high before the wedding season",
+	"Big-star film releases Friday; fans plan a 4 AM show",
+	"Corporation promises smooth roads by Pongal",
+	"Filter coffee vs tea: the debate reaches the city council",
+	"Beach clean-up drive this weekend; volunteers wanted",
+	"College results out this weekend; students \"completely calm\"",
+	"Auto fares to be revised; drivers unimpressed",
+	"Local cricket club wins by one run, celebrates for three days",
+	"Weather office: \"Carry an umbrella. Or don't. We're not your mother.\"",
+]
+
+## Things customers say while they wait, by situation.
+const CHATTER := {
+	"any": [
+		"Did you see last night's match?", "Traffic was crazy today.", "That new film? Waste of time.",
+		"Petrol went up again, I tell you.", "My boss called again. On a Sunday!",
+		"My daughter got full marks in maths!", "Ayyo, this heat.", "Smells good, anna!",
+	],
+	"morning": ["First tea of the day. Life saver.", "Late for office, quick quick!", "Didn't sleep at all."],
+	"evening": ["Long day, anna.", "One tea, then home.", "The sunset is nice today."],
+	"rain": ["Rain means tea, no?", "Forgot my umbrella again.", "Roads will flood by evening, watch."],
+}
+## What customers say as they leave, by how good their order was.
+const REACTIONS := {
+	"perfect": ["Super-a irukku!", "Semma tea!", "Aaha, perfect!", "Best in Chennai!"],
+	"good": ["Nice, anna.", "Good tea.", "Hmm, nice."],
+	"okay": ["Okay okay.", "Bit flat today."],
+	"grumpy": ["Finally!", "Took your time…"],
+}
+## A perfect-pour streak this long or longer earns a bonus each pour.
+const STREAK_BONUS_FROM := 3
+
+
+## A date like "Monday, 3 November" for a day number.
+static func date_text(day: int) -> String:
+	var info := _date(day)
+	return "%s, %d %s" % [WEEKDAYS[(day - 1) % 7], info["day"], MONTHS[int(info["month"]) - 1]]
+
+
+static func weekday_short(day: int) -> String:
+	return WEEKDAYS[(day - 1) % 7].substr(0, 3)
+
+
+static func _date(day: int) -> Dictionary:
+	var start := Time.get_unix_time_from_datetime_dict(START_DATE)
+	return Time.get_datetime_dict_from_unix_time(start + (day - 1) * 86400)
+
+
+## The minutes a rain shower falls on this day, as (start, end), or ZERO.
+## Fixed per day so the morning paper can forecast it.
+static func rain_for_day(day: int) -> Vector2:
+	if day <= 1:
+		return Vector2.ZERO
+	var rng := RandomNumberGenerator.new()
+	rng.seed = day * 7919 + 13
+	if rng.randf() >= RAIN_CHANCE:
+		return Vector2.ZERO
+	var start := rng.randf_range(660.0, 1020.0)
+	return Vector2(start, start + rng.randf_range(90.0, 150.0))
+
+
+static func headline(day: int) -> String:
+	return HEADLINES[(day - 1) % HEADLINES.size()]
 
 
 ## What one unit of a menu item costs you in stock, in rupees.

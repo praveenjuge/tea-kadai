@@ -1,13 +1,15 @@
 class_name MorningScreen
 extends Control
-## The paused morning: buy stock at the market and set today's prices.
+## The paused morning: the paper, the week ahead, the market stalls, and
+## today's prices.
 
 signal open_requested
 
 var _state: KadaiState
 var _money: Label
-var _market := {}  # stock id -> {"have": Label, "buy": Button, "undo": Button}
-var _price_labels := {}  # menu id -> Label
+var _market: MarketScene
+var _hint: Label
+var _price_labels := {}
 var _can_make: Label
 
 
@@ -19,31 +21,46 @@ func _ready() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 16)
-	for side in ["top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 12)
+	for side in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 8)
 	add_child(margin)
-
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 8)
+	root.add_theme_constant_override("separation", 6)
 	margin.add_child(root)
 
 	var header := HBoxContainer.new()
-	header.add_child(Style.label("Day %d · Morning" % _state.day, Style.TEXT, Style.TITLE_SIZE))
+	header.add_child(Style.label("Day %d · %s" % [_state.day, Catalog.date_text(_state.day)], Style.TEXT, Style.TITLE_SIZE))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	header.add_child(spacer)
 	_money = Style.label("", Style.ACCENT, Style.TITLE_SIZE)
 	header.add_child(_money)
 	root.add_child(header)
-	root.add_child(Style.label("Stock up at the market and set today's prices. Leftover stock keeps for tomorrow.", Style.MUTED))
 
-	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 10)
-	columns.size_flags_vertical = SIZE_EXPAND_FILL
-	columns.add_child(_build_market())
-	columns.add_child(_build_prices())
-	root.add_child(columns)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	top.add_child(_build_paper())
+	top.add_child(_build_week())
+	root.add_child(top)
+
+	_market = MarketScene.new(_state)
+	_market.custom_minimum_size.y = 128
+	_market.size_flags_vertical = SIZE_EXPAND_FILL
+	_market.bought.connect(func(id: String) -> void:
+		_state.buy(id)
+		_refresh())
+	_market.returned.connect(func(id: String) -> void:
+		_state.undo_buy(id)
+		_refresh())
+	_market.mouse_exited.connect(_refresh)
+	_market.gui_input.connect(func(_e: InputEvent) -> void: _refresh_hint())
+	root.add_child(_market)
+	_hint = Style.label("", Style.MUTED)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(_hint)
+
+	root.add_child(_build_prices())
 
 	var footer := HBoxContainer.new()
 	_can_make = Style.label("", Style.MUTED)
@@ -54,87 +71,84 @@ func _ready() -> void:
 	_refresh()
 
 
-func _build_market() -> Control:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = SIZE_EXPAND_FILL
+func _build_paper() -> Control:
+	var paper := PanelContainer.new()
+	paper.theme_type_variation = "PaperPanel"
+	paper.size_flags_horizontal = SIZE_EXPAND_FILL
 	var box := VBoxContainer.new()
-	panel.add_child(box)
-	box.add_child(Style.label("Market", Style.ACCENT))
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 3)
-	box.add_child(grid)
-	for stock_id in Catalog.MARKET_ORDER:
-		var pack: Dictionary = Catalog.MARKET[stock_id]
-		var title := Style.label("%s (%s)" % [pack["name"], pack["pack"].to_lower()])
-		title.size_flags_horizontal = SIZE_EXPAND_FILL
-		grid.add_child(title)
-		var have := Style.label("", Style.MUTED)
-		have.custom_minimum_size.x = 64
-		grid.add_child(have)
-		var buy := Style.button("Buy %s" % Style.rupees(pack["cost"]), _on_buy.bind(stock_id))
-		grid.add_child(buy)
-		var undo := Style.button("Undo", _on_undo.bind(stock_id))
-		grid.add_child(undo)
-		_market[stock_id] = {"have": have, "buy": buy, "undo": undo}
+	box.add_theme_constant_override("separation", 1)
+	paper.add_child(box)
+	box.add_child(Style.label("THE MORNING KADAI TIMES", Style.LINE))
+	box.add_child(Style.paragraph(Catalog.headline(_state.day), 300.0, Style.INK))
+	var rain := Catalog.rain_for_day(_state.day)
+	var forecast := "Weather: clear skies, hot by noon."
+	if rain != Vector2.ZERO:
+		forecast = "Weather: showers likely around %s. Tea weather!" % _clock_text(rain.x)
+	box.add_child(Style.label(forecast, Style.LINE.darkened(0.2)))
+	return paper
+
+
+func _build_week() -> Control:
+	var panel := PanelContainer.new()
+	var strip := Control.new()
+	strip.custom_minimum_size = Vector2(7 * 32, 52)
+	strip.draw.connect(_draw_week.bind(strip))
+	panel.add_child(strip)
 	return panel
+
+
+func _draw_week(strip: Control) -> void:
+	var font := strip.get_theme_default_font()
+	var first := _state.day - (_state.day - 1) % 7
+	for i in 7:
+		var day := first + i
+		var box := Rect2(i * 32 + 1, 0, 30, 52)
+		var today := day == _state.day
+		strip.draw_rect(box, Style.ACCENT if today else (Style.PANEL_DARK if day > _state.day else Style.LINE))
+		var label := Catalog.weekday_short(day)
+		var color := Style.INK if today else Style.TEXT
+		strip.draw_string(font, box.position + Vector2(4, 12), label, HORIZONTAL_ALIGNMENT_LEFT, -1, Style.FONT_SIZE, color)
+		strip.draw_string(font, box.position + Vector2(4, 24), str(day), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, color)
+		var symbol := "cloud" if Catalog.rain_for_day(day) != Vector2.ZERO else "sun"
+		if day >= _state.day:
+			Style.draw_symbol(strip, symbol, box.position + Vector2(15, 38), 1.0)
+		var story: Dictionary = Story.visit("karthik", day)
+		if day >= _state.day and (story.get("lucky", false) or story.get("treat", false)):
+			Style.draw_symbol(strip, "star", box.position + Vector2(24, 18), 0.8)
 
 
 func _build_prices() -> Control:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size.x = 210
-	var box := VBoxContainer.new()
-	panel.add_child(box)
-	box.add_child(Style.label("Today's prices", Style.ACCENT))
-	var grid := GridContainer.new()
-	grid.columns = 5
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 3)
-	box.add_child(grid)
-	for item in Catalog.MENU_ORDER:
-		var title := Style.label(Catalog.MENU[item]["name"])
-		title.size_flags_horizontal = SIZE_EXPAND_FILL
-		grid.add_child(title)
-		grid.add_child(Style.button("-", _on_price.bind(item, -1)))
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 14)
+	panel.add_child(flow)
+	flow.add_child(Style.label("Prices:", Style.ACCENT))
+	for item in _state.menu():
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 3)
+		cell.add_child(Style.label(Catalog.MENU[item]["name"]))
+		cell.add_child(_price_button("-", item, -1))
 		var price := Style.label("")
-		price.custom_minimum_size.x = 26
+		price.custom_minimum_size.x = 24
 		price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		grid.add_child(price)
-		grid.add_child(Style.button("+", _on_price.bind(item, 1)))
-		var usual := Style.label("costs ₹%d" % ceili(Catalog.unit_cost(item)), Style.MUTED)
-		grid.add_child(usual)
+		cell.add_child(price)
+		cell.add_child(_price_button("+", item, 1))
 		_price_labels[item] = price
-	var note := Style.label("Charge more than the usual price and some customers will walk away.", Style.MUTED)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size.x = 190
-	box.add_child(note)
+		flow.add_child(cell)
 	return panel
 
 
-func _on_buy(stock_id: String) -> void:
-	_state.buy(stock_id)
-	_refresh()
-
-
-func _on_undo(stock_id: String) -> void:
-	_state.undo_buy(stock_id)
-	_refresh()
-
-
-func _on_price(item: String, change: int) -> void:
-	_state.set_price(item, int(_state.prices[item]) + change)
-	_refresh()
+func _price_button(text: String, item: String, change: int) -> Button:
+	var button := Style.button(text, func() -> void:
+		_state.set_price(item, int(_state.prices[item]) + change)
+		_refresh(), true)
+	button.custom_minimum_size = Vector2(14, 14)
+	return button
 
 
 func _refresh() -> void:
 	_money.text = Style.rupees(_state.money)
-	for stock_id in Catalog.MARKET_ORDER:
-		var row: Dictionary = _market[stock_id]
-		row["have"].text = "%d %s" % [_state.stock[stock_id], Catalog.MARKET[stock_id]["unit"]]
-		row["buy"].disabled = not _state.can_afford(stock_id)
-		row["undo"].disabled = _state.bought_today(stock_id) == 0
-	for item in Catalog.MENU_ORDER:
+	for item in _price_labels:
 		var price := int(_state.prices[item])
 		var usual := int(Catalog.MENU[item]["price"])
 		var label: Label = _price_labels[item]
@@ -146,6 +160,25 @@ func _refresh() -> void:
 			color = Style.GOOD
 		label.add_theme_color_override("font_color", color)
 	var parts: Array[String] = []
-	for item in Catalog.MENU_ORDER:
+	for item in _state.menu():
 		parts.append("%d %s" % [_state.how_many(item), Catalog.MENU[item]["name"].to_lower()])
-	_can_make.text = "Enough stock for: " + ", ".join(parts)
+	_can_make.text = "Enough for: " + ", ".join(parts)
+	_market.queue_redraw()
+	_refresh_hint()
+
+
+func _refresh_hint() -> void:
+	var over := _market.hovered()
+	if over == "":
+		_hint.text = "Click goods to buy a pack, the red minus to put one back. Above the usual price, some customers walk away."
+		return
+	var pack: Dictionary = Catalog.MARKET[over]
+	_hint.text = "%s, %s: makes %d %s for %s. You have %d." % [pack["name"], pack["pack"].to_lower(),
+		pack["gives"], pack["unit"], Style.rupees(pack["cost"]), _state.stock[over]]
+
+
+static func _clock_text(minutes: float) -> String:
+	var hour := int(minutes) / 60
+	var suffix := "AM" if hour < 12 else "PM"
+	var hour12 := hour % 12
+	return "%d %s" % [12 if hour12 == 0 else hour12, suffix]

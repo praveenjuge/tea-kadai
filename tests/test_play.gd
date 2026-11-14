@@ -1,8 +1,9 @@
 extends SceneTree
 ## Plays the real game through input events, the same path a player's mouse
-## and keyboard take: buy stock, open the kadai, make tea with the keyboard,
-## fry vadai and serve customers with the mouse, pause, end the day, and start
-## the next morning.
+## and keyboard take: the title screen, buying at the market stalls, opening
+## the kadai, making tea and vadai, serving, the pause menu, Karthik's visit,
+## the night tally, the next morning, and quitting back to the title.
+## Uses its own save and settings files, so a player's save is never touched.
 ## Run: godot --path . -s tests/test_play.gd
 ## Record it: add --write-movie <path>.avi --fixed-fps 30
 
@@ -14,39 +15,68 @@ var _main: Control
 
 
 func _init() -> void:
+	SaveGame.path = "user://test_save.json"
+	Settings.path = "user://test_settings.cfg"
+	SaveGame.delete()
 	_main = load("res://main.tscn").instantiate()
 	root.add_child(_main)
 	_run.call_deferred()
 
 
 func _run() -> void:
-	await _frames(5)
+	await _wait_for(TitleScreen)
+	await _title()
 	await _morning()
 	await _service()
 	await _night()
+	await _back_to_title()
 	if _failures == 0:
 		print("All play checks passed.")
 	else:
 		printerr("%d play check(s) failed." % _failures)
 	Engine.time_scale = 1.0
+	SaveGame.delete()
 	_main.queue_free()
 	await _frames(2)
 	quit(1 if _failures > 0 else 0)
 
 
+func _title() -> void:
+	var screen = _main._screen
+	_check(screen is TitleScreen, "game opens on the title screen")
+	_check(_find_button(screen, "Continue") == null, "no Continue button without a save")
+	_click(_find_button(screen, "Settings"))
+	await _frames(3)
+	_check(_main._overlays.get_child_count() == 1, "Settings opens over the title")
+	_tap(KEY_ESCAPE)
+	await _frames(3)
+	_check(_main._overlays.get_child_count() == 0, "Escape closes the settings")
+	_click(_find_button(screen, "New game"))
+	await _wait_for(MorningScreen)
+
+
 func _morning() -> void:
 	var screen = _main._screen
-	_check(screen is MorningScreen, "game opens on the morning market")
+	_check(screen is MorningScreen, "New game opens the morning market")
+	_check(SaveGame.exists(), "the morning is saved")
 	var state: KadaiState = _main.state
 	var money := state.money
-	_click(screen._market["batter"]["buy"])
-	_click(screen._market["oil"]["buy"])
-	_click(screen._market["milk"]["buy"])
-	await _frames(3)
-	_check(state.money == money - 48 - 140 - 60, "buying batter, oil and milk spends the right money")
+	var market: MarketScene = screen._market
+	await _frames(2)
+	for stock_id in ["batter", "oil", "milk", "bun"]:
+		var tile: Rect2 = market._tiles[stock_id]["rect"]
+		_click_at(market.global_position + tile.get_center())
+		await _frames(2)
+	_check(state.money == money - 48 - 140 - 60 - 48, "clicking goods at the stalls buys them")
+	var tile: Rect2 = market._tiles["bun"]["undo"]
+	_click_at(market.global_position + tile.get_center())
+	await _frames(2)
+	_check(state.money == money - 48 - 140 - 60, "the red minus puts a pack back")
+	_click_at(market.global_position + Rect2(market._tiles["bun"]["rect"]).get_center())
+	await _frames(2)
 	_check(state.how_many("vadai") > 0, "batter and oil make vadai stock")
 	_click(_find_button(screen, "Open the kadai"))
-	await _frames(5)
+	await _wait_for(ServiceScreen)
 
 
 func _service() -> void:
@@ -59,14 +89,15 @@ func _service() -> void:
 	_check(sound._loops["street_loop"].playing, "street sounds play during service")
 	_check(sound._loops["music_day"].playing, "day music plays in the morning")
 
-	# Pause stops the clock.
-	_key(KEY_P, true)
-	_key(KEY_P, false)
+	# The pause menu stops the clock.
+	_tap(KEY_P)
 	var paused_at := service.clock.elapsed
 	await _frames(20)
+	_check(screen._pause_menu.visible, "P opens the pause menu")
 	_check(is_equal_approx(service.clock.elapsed, paused_at), "pausing stops the clock")
-	_key(KEY_P, true)
-	_key(KEY_P, false)
+	_click(_find_button(screen._pause_menu, "Back to the counter"))
+	await _frames(2)
+	_check(not screen._pause_menu.visible, "Back to the counter closes the menu")
 
 	# One glass of tea with the keyboard: one press fills it, then hold to pour.
 	_tap(KEY_SPACE)
@@ -130,6 +161,23 @@ func _service() -> void:
 	_check(int(state.today["served"]) >= SERVE_GOAL, "served %d customers by clicking them" % state.today["served"])
 	_check(int(state.today["revenue"]) > 0, "serving earns money")
 
+	# Play on faster until Karthik arrives, then serve him.
+	Engine.time_scale = 8.0
+	guard = 0
+	while not service.regular.is_here() and not service.closed and guard < 20000:
+		guard += 1
+		await _play_turn(screen, service)
+	Engine.time_scale = 1.0
+	_check(service.regular.is_here(), "Karthik comes to the counter in the evening")
+	await _frames(5)
+	_check(screen._street._speech._bubbles.size() > 0, "Karthik says something in a speech bubble")
+	guard = 0
+	while not service.regular.done and guard < 6000:
+		guard += 1
+		await _play_turn(screen, service)
+	_check(state.today["met"].has("karthik"), "Karthik was served today")
+	_check(int(state.regular("karthik")["friendship"]) > 0, "serving Karthik builds friendship")
+
 	# Fast forward to closing time.
 	Engine.time_scale = 60.0
 	guard = 0
@@ -140,14 +188,33 @@ func _service() -> void:
 
 
 func _night() -> void:
+	await _wait_for(NightScreen)
 	var screen = _main._screen
 	_check(screen is NightScreen, "the day ends on the night summary")
 	if not (screen is NightScreen):
 		return
-	await _frames(10)
+	# The tally counts up over a couple of seconds before the stars show.
+	await create_timer(3.5).timeout
+	_check(screen._stars_shown >= 1, "the night tally gives the day stars")
+	_check(screen._upgrades.size() == Catalog.UPGRADES.size(), "the night screen offers every upgrade")
 	_click(_find_button(screen, "Plan tomorrow"))
-	await _frames(5)
+	await _wait_for(MorningScreen)
 	_check(_main._screen is MorningScreen and _main.state.day == 2, "next morning is day 2")
+	var saved := SaveGame.load_state()
+	_check(saved != null and saved.day == 2, "day 2 is saved")
+	_check(saved != null and int(saved.regular("karthik")["friendship"]) > 0, "Karthik's friendship is saved")
+
+
+func _back_to_title() -> void:
+	_click(_find_button(_main._screen, "Open the kadai"))
+	await _wait_for(ServiceScreen)
+	var screen = _main._screen
+	_tap(KEY_ESCAPE)
+	await _frames(2)
+	_click(_find_button(screen._pause_menu, "Quit to title"))
+	await _wait_for(TitleScreen)
+	_check(_main._screen is TitleScreen, "Quit to title goes back to the title screen")
+	_check(_find_button(_main._screen, "Continue") != null, "the title offers Continue once there's a save")
 
 
 ## One step of a simple player, using only input events.
@@ -164,7 +231,7 @@ func _play_turn(screen: ServiceScreen, service: Service) -> void:
 	if fry == Fryer.Doneness.GOLDEN or (fry == Fryer.Doneness.EMPTY and service.ready_count("vadai") < 2):
 		_tap(KEY_F)
 	var street: StreetView = screen._street
-	for seat in Catalog.SEATS:
+	for seat in service.seats.size():
 		if service.can_fill(seat) and street._arrive[seat] >= 1.0:
 			# Alternate between clicking the person and clicking their bubble.
 			var feet := street._iso(StreetView.SEAT_TILES[seat])
@@ -214,6 +281,16 @@ func _find_button(node: Node, starts_with: String) -> Button:
 		if (child as Button).text.begins_with(starts_with):
 			return child
 	return null
+
+
+## Waits until this screen is up and faded in, plus a few frames so its
+## layout has settled before anything is clicked.
+func _wait_for(screen_type) -> void:
+	for i in 400:
+		if is_instance_of(_main._screen, screen_type) and _main._fade.color.a < 0.05:
+			break
+		await process_frame
+	await _frames(4)
 
 
 func _frames(count: int) -> void:

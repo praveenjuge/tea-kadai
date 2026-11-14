@@ -3,8 +3,6 @@ extends PanelContainer
 ## Everything ready to hand over: tea on the tray, vadai on the plate, and the
 ## packaged snacks on the shelf.
 
-const ROW_ITEMS: Array[String] = ["tea", "vadai", "biscuit", "bun"]
-
 var _service: Service
 var _art: Control
 
@@ -31,9 +29,10 @@ func refresh() -> void:
 
 func _draw_ready() -> void:
 	var font := _art.get_theme_default_font()
-	var column := _art.size.x / ROW_ITEMS.size()
-	for i in ROW_ITEMS.size():
-		var item := ROW_ITEMS[i]
+	var items := _service.state.menu()
+	var column := _art.size.x / items.size()
+	for i in items.size():
+		var item := items[i]
 		var count := _service.ready_count(item)
 		var at := Vector2(column * (i + 0.5), _art.size.y * 0.42)
 		var alpha := 1.0 if count > 0 else 0.3

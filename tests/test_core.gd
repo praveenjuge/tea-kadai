@@ -18,6 +18,9 @@ func _init() -> void:
 	_test_nobody_walks_out()
 	_test_running_out()
 	_test_sounds_exist()
+	_test_karthik()
+	_test_upgrades_and_saving()
+	_test_rain_is_fixed_per_day()
 	_test_bot_plays_a_full_day()
 	if _failures == 0:
 		print("All core checks passed.")
@@ -182,6 +185,86 @@ func _test_sounds_exist() -> void:
 		_check(SoundBoard.VOLUME.has(SoundBoard.EVENTS[event]), "event %s plays a known sound" % event)
 	for loop_name in SoundBoard.LOOP_FADE:
 		_check(SoundBoard.VOLUME.has(loop_name), "loop %s has a volume" % loop_name)
+
+
+## Runs a service until Karthik is at the counter and returns his seat.
+func _bring_karthik(service: Service) -> int:
+	for i in 20000:
+		if service.regular.is_here():
+			return service.regular.seat
+		service.clock.advance(0.1)
+		service.regular.update(0.1)
+	return -1
+
+
+func _test_karthik() -> void:
+	# Day 2: he asks a question; answering builds friendship.
+	var state := KadaiState.new()
+	state.day = 2
+	var service := Service.new(state, 5)
+	var lines: Array = []
+	var questions: Array = []
+	service.said.connect(func(_s: int, text: String) -> void: lines.append(text))
+	service.asked.connect(func(_s: int, q: String, options: Array) -> void: questions.append([q, options]))
+	var seat := _bring_karthik(service)
+	_check(seat >= 0, "Karthik arrives on day 2")
+	_check(lines.size() == 1, "he says hello when he arrives")
+	service.regular.update(RegularVisit.ASK_AFTER + 0.1)
+	_check(questions.size() == 1 and questions[0][1].size() == 2, "he asks a question with two answers")
+	service.answer(seat, 0)
+	_check(int(state.regular("karthik")["friendship"]) == 8, "answering \"Study, da!\" adds 8 friendship")
+	service.ready["tea"].append(1.0)
+	state.stock["bun"] = 5
+	service.serve(seat)
+	_check(service.regular.done and state.today["met"].has("karthik"), "serving him finishes his visit")
+	_check(int(state.regular("karthik")["friendship"]) == 8 + RegularVisit.SERVED_GAIN + RegularVisit.PERFECT_GAIN,
+		"a perfect tea for him adds more friendship")
+
+	# Day 3: his usual is hidden, remembering it pays, and he teaches ginger tea.
+	state = KadaiState.new()
+	state.day = 3
+	state.add_friendship("karthik", 25)
+	state.stock["bun"] = 5
+	service = Service.new(state, 6)
+	seat = _bring_karthik(service)
+	_check(service.seats[seat]["usual_hidden"], "on day 3 he just asks for \"the usual\"")
+	service.regular.update(RegularVisit.WAIT_LINE_AFTER + 0.1)
+	_check(state.menu().has("ginger_tea") and int(state.stock["ginger"]) >= 20, "he teaches ginger tea and brings ginger")
+	var money := state.money
+	service.ready["tea"].append(1.0)
+	service.serve(seat)
+	_check(state.money - money >= 12 + 15 + RegularVisit.REMEMBERED_TIP, "remembering his usual earns a bonus tip")
+	_check(Story.hook("karthik", 3) != "", "each story day has a night hook")
+
+
+func _test_upgrades_and_saving() -> void:
+	var state := KadaiState.new()
+	state.money = 1000
+	_check(state.buy_upgrade("bench") and state.money == 650, "the bench costs 350")
+	_check(not state.buy_upgrade("bench"), "an upgrade can only be bought once")
+	_check(Service.new(state, 1).seats.size() == Catalog.SEATS + 1, "the bench adds a seat")
+	state.buy_upgrade("pot")
+	_check(Service.new(state, 1).tea.fill_seconds < TeaStation.FILL_SECONDS, "the bigger pot fills glasses faster")
+	state.recipes.append("ginger_tea")
+	state.add_friendship("karthik", 30)
+	state.day = 4
+	var copy := KadaiState.from_dict(JSON.parse_string(JSON.stringify(state.to_dict())))
+	_check(copy.day == 4 and copy.money == state.money, "day and money survive a save")
+	_check(copy.has_upgrade("bench") and copy.has_upgrade("pot"), "upgrades survive a save")
+	_check(copy.menu().has("ginger_tea"), "learned recipes survive a save")
+	_check(int(copy.regular("karthik")["friendship"]) == 30, "friendship survives a save")
+	var old := KadaiState.from_dict({"day": 2, "money": 50})
+	_check(old.day == 2 and old.stock.has("ginger"), "an old or partial save still loads")
+
+
+func _test_rain_is_fixed_per_day() -> void:
+	var rainy := 0
+	for day in range(1, 31):
+		_check(Catalog.rain_for_day(day) == Catalog.rain_for_day(day), "rain is the same every time for day %d" % day)
+		if Catalog.rain_for_day(day) != Vector2.ZERO:
+			rainy += 1
+	_check(Catalog.rain_for_day(1) == Vector2.ZERO, "never rains on day 1")
+	_check(rainy >= 5 and rainy <= 16, "it rains on about a third of days, got %d of 30" % rainy)
 
 
 ## A simple bot plays a whole day. Checks that the loop runs to the end and a

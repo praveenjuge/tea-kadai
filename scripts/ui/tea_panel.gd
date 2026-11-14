@@ -6,6 +6,7 @@ var _service: Service
 var _art: TeaArt
 var _button: Button
 var _stock: Label
+var _kinds := {}
 
 
 func _init(service: Service) -> void:
@@ -18,7 +19,16 @@ func _ready() -> void:
 	add_child(box)
 
 	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 4)
 	head.add_child(Style.label("Tea", Style.ACCENT))
+	# Once ginger tea is learned, pick which tea the next glass will be.
+	if _service.state.menu().has("ginger_tea"):
+		for kind in Catalog.GLASSES:
+			var text := "Plain" if kind == "tea" else "Ginger [%s]" % Controls.hint("ginger")
+			var pick := Style.button(text, _service.set_tea_kind.bind(kind), true)
+			pick.custom_minimum_size.y = 14
+			head.add_child(pick)
+			_kinds[kind] = pick
 	_stock = Style.label("", Style.MUTED)
 	_stock.size_flags_horizontal = SIZE_EXPAND_FILL
 	_stock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -43,8 +53,16 @@ func refresh() -> void:
 	var tea := _service.tea
 	_button.text = "%s  [%s]" % [tea.action_text(), Controls.hint("tea")]
 	_button.disabled = tea.stage == TeaStation.Stage.FILLING
-	_stock.text = "%d glasses' worth" % _service.state.how_many("tea")
+	_stock.text = "%d left" % _service.state.how_many(_service.tea_kind)
+	for kind in _kinds:
+		var pick: Button = _kinds[kind]
+		pick.theme_type_variation = "Button" if kind == _service.tea_kind else "QuietButton"
 	_art.queue_redraw()
+
+
+## Where the glass sits on screen, for the sparkle on a perfect pour.
+func glass_point() -> Vector2:
+	return _art.global_position + Vector2(_art.size.x * 0.5, _art.size.y - 34)
 
 
 ## Draws the milk pot, the glass, the tumbler and stream while pouring, and the meter.

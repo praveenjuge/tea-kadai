@@ -15,6 +15,10 @@ const POUR_SECONDS := 1.5
 const TARGET_WIDTH := 0.17
 
 var stage := Stage.EMPTY
+## Which tea is in the glass: "tea" or "ginger_tea".
+var kind := "tea"
+## Seconds a glass takes to fill. The bigger milk pot halves it.
+var fill_seconds := FILL_SECONDS
 ## 0 = tumbler at the glass, 1 = full stretch (spills).
 var pour_height := 0.0
 ## Low and high edge of the green zone on the pour meter.
@@ -39,12 +43,13 @@ func action_text() -> String:
 ## 0 to 1 while the glass fills, 1 once it's full.
 func fill_progress() -> float:
 	if stage == Stage.FILLING:
-		return _fill_time / FILL_SECONDS
+		return _fill_time / fill_seconds
 	return 0.0 if stage == Stage.EMPTY else 1.0
 
 
 ## Starts filling a new glass. The caller takes the stock for it first.
-func start(rng: RandomNumberGenerator) -> void:
+func start(rng: RandomNumberGenerator, tea_kind: String = "tea") -> void:
+	kind = tea_kind
 	stage = Stage.FILLING
 	_fill_time = 0.0
 	var low := rng.randf_range(0.5, 0.7)
@@ -72,7 +77,7 @@ func release_pour() -> void:
 func update(delta: float) -> void:
 	if stage == Stage.FILLING:
 		_fill_time += delta
-		if _fill_time >= FILL_SECONDS:
+		if _fill_time >= fill_seconds:
 			stage = Stage.READY
 	elif stage == Stage.POURING:
 		_pour_time += delta

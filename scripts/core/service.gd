@@ -1,8 +1,8 @@
 class_name Service
 extends RefCounted
 ## One live day at the kadai: customers arriving, the tea station, the fryer,
-## the ready food, and serving. Holds no drawing or input code; screens call
-## the action methods and listen to the signals.
+## the ready food, serving, the weather, and today's regular. Holds no drawing
+## or input code; screens call the action methods and listen to the signals.
 ##
 ## Nobody walks out. A customer who waits too long starts to grumble and won't
 ## tip, but stays until served. If the kadai runs out of something they want,
@@ -13,12 +13,20 @@ signal customer_arrived(seat: int)
 signal customer_left(seat: int, customer: Dictionary, outcome: String)
 signal message(text: String)
 signal day_over
-## Something worth a sound or a flourish happened: "tea_filling",
-## "poured_perfect", "poured_good", "poured_flat", "spilled", "vadai_drop",
-## "vadai_golden", "vadai_lifted", "vadai_burnt", "arrive", "grumble", "paid".
-signal happened(event: String)
+## Something worth a sound or a flourish: "tea_filling", "poured_perfect"
+## (amount = streak), "poured_good", "poured_flat", "spilled", "streak",
+## "vadai_drop", "vadai_golden", "vadai_lifted", "vadai_burnt", "arrive",
+## "grumble", "paid" (amount = rupees), "friendship", "recipe", "treat".
+signal happened(event: String, amount: int)
+## A customer says something, shown as a speech bubble.
+signal said(seat: int, text: String)
+## A customer asks something, with answers to pick from.
+signal asked(seat: int, question: String, options: Array)
+## A new part of the day began, like the evening rush.
+signal phase_started(phase: Dictionary)
 
 const SUPPLY_CHECK_SECONDS := 1.0
+const STREAK_BONUS_MAX := 5
 
 var state: KadaiState
 var clock := DayClock.new()
@@ -28,28 +36,49 @@ var rng := RandomNumberGenerator.new()
 ## One entry per seat: a customer Dictionary, or null when the seat is free.
 var seats: Array = []
 ## Made food waiting to be handed over, as a list of qualities per item.
-var ready := {"tea": [], "vadai": []}
+var ready := {"tea": [], "ginger_tea": [], "vadai": []}
 var closed := false
+## Which tea the next glass will be.
+var tea_kind := "tea"
+## Perfect pours in a row.
+var streak := 0
+## Today's shower as (start, end) kadai minutes, or ZERO.
+var rain := Vector2.ZERO
+## Today's regular, if any.
+var regular: RegularVisit
+## Tips are doubled for everyone (a regular is celebrating).
+var treat := false
+var _ambient := false
 var _spawn_timer := 2.0
 var _supply_timer := SUPPLY_CHECK_SECONDS
 var _golden_told := false
+var _phase_index := -1
 
 
-func _init(kadai: KadaiState, seed_value: int = -1) -> void:
+## "ambient" runs the street with nobody arriving, for the title screen.
+func _init(kadai: KadaiState, seed_value: int = -1, ambient: bool = false) -> void:
 	state = kadai
+	_ambient = ambient
 	if seed_value >= 0:
 		rng.seed = seed_value
 	else:
 		rng.randomize()
-	for i in Catalog.SEATS:
+	var seat_count := Catalog.SEATS + (1 if state.has_upgrade("bench") else 0)
+	for i in seat_count:
 		seats.append(null)
+	if state.has_upgrade("pot"):
+		tea.fill_seconds = TeaStation.FILL_SECONDS / 2.0
+	rain = Catalog.rain_for_day(state.day)
 	tea.poured.connect(_on_tea_poured)
+	if not ambient:
+		regular = RegularVisit.new(self, "karthik")
 
 
 func update(delta: float) -> void:
 	if closed:
 		return
 	clock.advance(delta)
+	_check_phase()
 	tea.update(delta)
 	fryer.update(delta)
 	_update_patience(delta)
@@ -58,9 +87,16 @@ func update(delta: float) -> void:
 	if _supply_timer <= 0.0:
 		_supply_timer = SUPPLY_CHECK_SECONDS
 		_drop_unavailable()
-	_update_arrivals(delta)
+	if not _ambient:
+		_update_arrivals(delta)
+		regular.update(delta)
 	if clock.is_over():
 		_close()
+
+
+func is_raining() -> bool:
+	var minute := clock.minutes()
+	return rain != Vector2.ZERO and minute >= rain.x and minute < rain.y
 
 
 # --- Player actions -------------------------------------------------------
@@ -69,13 +105,13 @@ func update(delta: float) -> void:
 func tea_press() -> void:
 	match tea.stage:
 		TeaStation.Stage.EMPTY:
-			if ready["tea"].size() >= int(Catalog.READY_CAPS["tea"]):
+			if glasses_ready() >= Catalog.TRAY_GLASSES:
 				message.emit("The tray is full. Serve someone first.")
-			elif not state.use_recipe("tea"):
-				message.emit("Out of %s! Buy more tomorrow." % state.missing_for("tea").to_lower())
+			elif not state.use_recipe(tea_kind):
+				message.emit("Out of %s! Buy more tomorrow." % state.missing_for(tea_kind).to_lower())
 			else:
-				tea.start(rng)
-				happened.emit("tea_filling")
+				tea.start(rng, tea_kind)
+				happened.emit("tea_filling", 0)
 		TeaStation.Stage.READY:
 			tea.begin_pour()
 
@@ -83,6 +119,12 @@ func tea_press() -> void:
 ## Release: let go of the pour.
 func tea_release() -> void:
 	tea.release_pour()
+
+
+## Picks which tea the next glass will be, if it's on the menu.
+func set_tea_kind(kind: String) -> void:
+	if state.menu().has(kind):
+		tea_kind = kind
 
 
 ## Drops a batch of vadai in, or lifts the batch out.
@@ -112,6 +154,12 @@ func serve(seat: int) -> void:
 		message.emit("Nothing ready for them yet.")
 
 
+## The player answers a regular's question.
+func answer(seat: int, index: int) -> void:
+	if regular != null and regular.seat == seat:
+		regular.answer(index)
+
+
 # --- Queries for screens --------------------------------------------------
 
 ## How many of an item could be handed over right now.
@@ -119,6 +167,13 @@ func ready_count(item: String) -> int:
 	if Catalog.MENU[item]["made"]:
 		return ready[item].size()
 	return state.how_many(item)
+
+
+func glasses_ready() -> int:
+	var n := 0
+	for kind in Catalog.GLASSES:
+		n += ready[kind].size()
+	return n
 
 
 ## True when everything this customer wants is ready to hand over right now.
@@ -139,16 +194,93 @@ func fry_action_text() -> String:
 	return "Fry %d vadai" % _batch_size() if _batch_size() > 0 else "Fry vadai"
 
 
+## The look and numbers for a customer type or a regular.
+static func kind_of(type_id: String) -> Dictionary:
+	if Catalog.CUSTOMERS.has(type_id):
+		return Catalog.CUSTOMERS[type_id]
+	return Story.REGULARS[type_id]
+
+
+## Puts a customer in a seat. Used for walk-ins and regulars.
+func seat_customer(seat: int, type_id: String, order: Dictionary, patience: float) -> void:
+	if state.has_upgrade("fan"):
+		patience *= Catalog.FAN_PATIENCE
+	seats[seat] = {
+		"type": type_id,
+		"order": order,
+		"patience": patience,
+		"patience_max": patience,
+		"grumpy": false,
+		"bill": 0,
+		"quality_sum": 0.0,
+		"quality_n": 0,
+	}
+	customer_arrived.emit(seat)
+	happened.emit("arrive", 0)
+
+
+## A walk-in customer of this type arrives, if there's room.
+func arrive(type_id: String) -> void:
+	var kind: Dictionary = Catalog.CUSTOMERS[type_id]
+	var seat := seats.find(null)
+	if regular != null and regular.waiting:
+		seat = -1
+	if seat < 0:
+		state.today["no_seat"] += 1
+		message.emit("A %s walked past. No room at the counter." % kind["name"].to_lower())
+		return
+	var order := {}
+	var wants: Dictionary = kind["wants"]
+	for item in wants:
+		if rng.randf() < float(wants[item]):
+			order[item] = 1
+	if is_raining() and not order.has("tea"):
+		order["tea"] = 1
+	if order.is_empty():
+		order["tea"] = 1
+	if order.has("tea") and state.menu().has("ginger_tea") and rng.randf() < Catalog.GINGER_SHARE:
+		order.erase("tea")
+		order["ginger_tea"] = 1
+	var too_costly := ""
+	var sold_out := ""
+	for item in order.keys():
+		var item_name: String = Catalog.MENU[item]["name"].to_lower()
+		if not _can_supply(item):
+			order.erase(item)
+			sold_out = item_name
+		elif not _price_ok(item, kind):
+			order.erase(item)
+			too_costly = item_name
+	if order.is_empty():
+		if too_costly != "":
+			state.today["too_costly"] += 1
+			message.emit("%s: \"%s at that price? No thanks.\"" % [kind["name"], too_costly.capitalize()])
+		else:
+			state.today["out_of_stock"] += 1
+			message.emit("%s wanted %s, but you're out." % [kind["name"], sold_out])
+		return
+	if too_costly != "":
+		message.emit("%s skipped the %s. Too costly." % [kind["name"], too_costly])
+	seat_customer(seat, type_id, order, float(kind["patience"]))
+
+
 # --- Internals ------------------------------------------------------------
 
+func _check_phase() -> void:
+	var index := clock.phase_index()
+	if index != _phase_index:
+		_phase_index = index
+		phase_started.emit(clock.phase())
+
+
 func _batch_size() -> int:
-	var space: int = int(Catalog.READY_CAPS["vadai"]) - ready["vadai"].size()
+	var space := Catalog.VADAI_PLATE - int(ready["vadai"].size())
 	return mini(Fryer.BATCH, mini(state.how_many("vadai"), space))
 
 
 func _fry_drop() -> void:
 	var amount := _batch_size()
-	if ready["vadai"].size() >= int(Catalog.READY_CAPS["vadai"]):
+	if ready["vadai"].size() >= Catalog.VADAI_PLATE:
 		message.emit("The vadai plate is full.")
 		return
 	if amount <= 0:
@@ -157,14 +289,14 @@ func _fry_drop() -> void:
 	for i in amount:
 		state.use_recipe("vadai")
 	fryer.drop(amount)
-	happened.emit("vadai_drop")
 	_golden_told = false
+	happened.emit("vadai_drop", 0)
 
 
 func _fry_take() -> void:
 	var batch := fryer.take()
 	var amount: int = batch["count"]
-	happened.emit("vadai_burnt" if batch["doneness"] == Fryer.Doneness.BURNT else "vadai_lifted")
+	happened.emit("vadai_burnt" if batch["doneness"] == Fryer.Doneness.BURNT else "vadai_lifted", 0)
 	match batch["doneness"]:
 		Fryer.Doneness.BURNT:
 			state.today["wasted"] += amount
@@ -182,8 +314,8 @@ func _fry_take() -> void:
 func _update_fryer_cue() -> void:
 	if not _golden_told and fryer.doneness() == Fryer.Doneness.GOLDEN:
 		_golden_told = true
-		happened.emit("vadai_golden")
 		message.emit("The vadai are golden. Lift them out!")
+		happened.emit("vadai_golden", 0)
 
 
 func _hand_over(item: String, customer: Dictionary) -> bool:
@@ -202,19 +334,37 @@ func _hand_over(item: String, customer: Dictionary) -> bool:
 
 func _finish_customer(seat: int) -> void:
 	var customer: Dictionary = seats[seat]
-	var kind: Dictionary = Catalog.CUSTOMERS[customer["type"]]
+	var kind := kind_of(customer["type"])
 	var avg: float = customer["quality_sum"] / maxf(1.0, customer["quality_n"])
 	var calm: float = customer["patience"] / customer["patience_max"]
 	var tip := 0
 	if not customer["grumpy"] and avg >= 0.7:
-		tip = roundi(float(kind["tip"]) * avg * (0.5 + calm))
+		var multiplier := 2.0 if treat else 1.0
+		if customer.has("regular"):
+			multiplier *= regular.tip_multiplier()
+		tip = roundi(float(kind["tip"]) * avg * (0.5 + calm) * multiplier)
+	seats[seat] = null
+	if customer.has("regular") and regular != null:
+		tip += regular.on_served(seat, customer, avg)
 	state.record_tip(tip)
 	state.today["served"] += 1
 	customer["tip"] = tip
 	customer["mood"] = avg
-	seats[seat] = null
+	customer["reaction"] = _reaction(customer, avg)
 	customer_left.emit(seat, customer, "served")
-	happened.emit("paid")
+	happened.emit("paid", int(customer["bill"]) + tip)
+
+
+func _reaction(customer: Dictionary, avg: float) -> String:
+	var pool := "okay"
+	if customer["grumpy"]:
+		pool = "grumpy"
+	elif avg >= 0.95:
+		pool = "perfect"
+	elif avg >= 0.7:
+		pool = "good"
+	var lines: Array = Catalog.REACTIONS[pool]
+	return lines[rng.randi() % lines.size()]
 
 
 func _update_patience(delta: float) -> void:
@@ -224,19 +374,20 @@ func _update_patience(delta: float) -> void:
 		customer["patience"] = maxf(0.0, customer["patience"] - delta)
 		if customer["patience"] <= 0.0:
 			customer["grumpy"] = true
-			happened.emit("grumble")
 			state.today["waited_long"] += 1
+			happened.emit("grumble", 0)
+			if customer.has("regular") and regular != null:
+				regular.on_grumpy()
 
 
 ## Whether this item can still reach a customer today.
 func _can_supply(item: String) -> bool:
-	match item:
-		"tea":
-			return not ready["tea"].is_empty() or tea.stage != TeaStation.Stage.EMPTY or state.can_make("tea")
-		"vadai":
-			return not ready["vadai"].is_empty() or not fryer.is_empty() or state.can_make("vadai")
-		_:
-			return state.can_make(item)
+	if Catalog.GLASSES.has(item):
+		var brewing := tea.stage != TeaStation.Stage.EMPTY and tea.kind == item
+		return not ready[item].is_empty() or brewing or state.can_make(item)
+	if item == "vadai":
+		return not ready["vadai"].is_empty() or not fryer.is_empty() or state.can_make("vadai")
+	return state.can_make(item)
 
 
 ## Waiting customers skip anything the kadai has run out of.
@@ -269,66 +420,24 @@ func _update_arrivals(delta: float) -> void:
 	_spawn_timer -= delta
 	if _spawn_timer > 0.0:
 		return
-	var gap: Vector2 = clock.phase()["spawn_gap"]
-	_spawn_timer = rng.randf_range(gap.x, gap.y) * Catalog.pace_for_day(state.day)
-	_arrive(_pick_weighted(clock.phase()["mix"]))
-
-
-func _arrive(type_id: String) -> void:
-	var kind: Dictionary = Catalog.CUSTOMERS[type_id]
-	var seat := seats.find(null)
-	if seat < 0:
-		state.today["no_seat"] += 1
-		message.emit("A %s walked past. No room at the counter." % kind["name"].to_lower())
-		return
-	var order := {}
-	var wants: Dictionary = kind["wants"]
-	for item in wants:
-		if rng.randf() < float(wants[item]):
-			order[item] = 1
-	if order.is_empty():
-		order["tea"] = 1
-	var too_costly := ""
-	var sold_out := ""
-	for item in order.keys():
-		var item_name: String = Catalog.MENU[item]["name"].to_lower()
-		if not _can_supply(item):
-			order.erase(item)
-			sold_out = item_name
-		elif not _price_ok(item, kind):
-			order.erase(item)
-			too_costly = item_name
-	if order.is_empty():
-		if too_costly != "":
-			state.today["too_costly"] += 1
-			message.emit("%s: \"%s at that price? No thanks.\"" % [kind["name"], too_costly.capitalize()])
-		else:
-			state.today["out_of_stock"] += 1
-			message.emit("%s wanted %s, but you're out." % [kind["name"], sold_out])
-		return
-	if too_costly != "":
-		message.emit("%s skipped the %s. Too costly." % [kind["name"], too_costly])
-	seats[seat] = {
-		"type": type_id,
-		"order": order,
-		"patience": float(kind["patience"]),
-		"patience_max": float(kind["patience"]),
-		"grumpy": false,
-		"bill": 0,
-		"quality_sum": 0.0,
-		"quality_n": 0,
-	}
-	customer_arrived.emit(seat)
-	happened.emit("arrive")
+	var phase := clock.phase()
+	var gap: Vector2 = phase["spawn_gap"]
+	var pace := Catalog.pace_for_day(state.day)
+	if is_raining():
+		pace *= Catalog.RAIN_PACE
+	if state.has_upgrade("sign") and phase["id"] in ["evening_rush", "closing"]:
+		pace *= Catalog.SIGN_EVENING_PACE
+	_spawn_timer = rng.randf_range(gap.x, gap.y) * pace
+	arrive(_pick_weighted(phase["mix"]))
 
 
 ## Above the usual price, each customer may decide it's not worth it.
 func _price_ok(item: String, kind: Dictionary) -> bool:
 	var usual := float(Catalog.MENU[item]["price"])
-	var asked := float(state.prices[item])
-	if asked <= usual:
+	var asked_price := float(state.prices[item])
+	if asked_price <= usual:
 		return true
-	var over := (asked - usual) / usual
+	var over := (asked_price - usual) / usual
 	var chance := clampf(1.0 - over * float(kind["price_sense"]) * 2.0, 0.05, 1.0)
 	return rng.randf() < chance
 
@@ -346,15 +455,27 @@ func _pick_weighted(weights: Dictionary) -> String:
 
 
 func _on_tea_poured(quality: float, label: String) -> void:
-	ready["tea"].append(quality)
+	ready[tea.kind].append(quality)
 	if quality >= 1.0:
-		happened.emit("poured_perfect")
-	elif quality >= 0.75:
-		happened.emit("poured_good")
-	elif quality >= 0.5:
-		happened.emit("poured_flat")
+		streak += 1
+		state.today["perfect"] += 1
+		state.today["best_streak"] = maxi(int(state.today["best_streak"]), streak)
+		state.best_streak = maxi(state.best_streak, streak)
+		happened.emit("poured_perfect", streak)
+		if streak >= Catalog.STREAK_BONUS_FROM:
+			var bonus := mini(streak - Catalog.STREAK_BONUS_FROM + 1, STREAK_BONUS_MAX)
+			state.record_tip(bonus)
+			message.emit("%d perfect in a row! +₹%d" % [streak, bonus])
+			happened.emit("streak", streak)
+			return
 	else:
-		happened.emit("spilled")
+		streak = 0
+		if quality >= 0.75:
+			happened.emit("poured_good", 0)
+		elif quality >= 0.5:
+			happened.emit("poured_flat", 0)
+		else:
+			happened.emit("spilled", 0)
 	message.emit(label)
 
 
@@ -366,5 +487,7 @@ func _close() -> void:
 		if customer != null:
 			seats[seat] = null
 			customer_left.emit(seat, customer, "closed")
-	state.today["wasted"] += ready["tea"].size() + ready["vadai"].size() + fryer.count
+	for item in ready:
+		state.today["wasted"] += ready[item].size()
+	state.today["wasted"] += fryer.count
 	day_over.emit()

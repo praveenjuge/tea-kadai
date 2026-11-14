@@ -167,13 +167,26 @@ After the calm-down pass.
 - Bubbles show which items are ready right now (bright) and which aren't (faded), so you can read the counter without looking down.
 - Messages show at the bottom of the street, next to the stations, instead of the top.
 
+## Round 3 decisions (2026-11-14)
+
+- **First regular:** Karthik, a broke, dreamy engineering student. Speech bubbles in the street (the game keeps running), a question with two answers on some days, "the usual" from day 3, friendship that unlocks bigger tips, ginger tea, and bringing friends. His week ends with passing his exams. "Pay you tomorrow" is just a running joke.
+- **Menus:** a living-street title screen (Continue, New game, How to play, Settings, Credits, Quit); a pause menu (Resume, Settings, How to play, Quit to title); settings for music, effects and street volume plus fullscreen.
+- **Morning:** illustrated market stalls, a newspaper headline with a forecast, and a week strip.
+- **Night:** a celebratory tally with stars, then upgrades to buy.
+- **Polish:** pixel font (Pixelify Sans), fades between screens, coins flying to the money counter, sparkles on perfect pours, wood and tin-sign styled panels and buttons.
+- **Hooks:** upgrades to save for, and a story cliffhanger each night.
+- **Juice:** pour streaks with bonuses and rising pitch, customer reactions, rush-hour banners with a percussion layer.
+- **World:** passers-by (walkers, cyclists, a dog, school kids), rain about one day in three, street chatter, and day names with dates.
+
+All of the above is built.
+
 ## Next up
 
 In order:
 
 1. **Calm-down pass:** the decisions above, bigger bubbles, a simpler bottom panel, and a window that isn't tiny on Retina screens.
 2. **Sound (first pass done):** synthesized placeholders for the pour, fill, perfect pour, oil sizzle, vadai chime, coins, grumbles, crows, auto horns, bicycle bells, street rumble, and day and night music in Mohanam with a tanpura drone. Real recordings or a composer can replace the files later.
-3. **First regular:** one auto driver with a name, a usual order ("strong, less sugar"), and a few lines of story over the week.
+3. **First regular (done):** Karthik, see round 3 above. A second regular could follow the same pattern in `story.gd`.
 4. **Save + Mac build:** days save between sessions, plus a double-clickable `.app`.
 5. **Pixel art pass:** sprites for people, the stall, and props, replacing the drawn shapes. Customers get faces and a bit of personality (a wave, a sip, a nod).
 6. **A goal for the day:** a small daily target shown in the morning ("Serve 20 people", "Earn ₹300"), plus something to save up for across the week.

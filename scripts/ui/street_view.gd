@@ -4,11 +4,14 @@ extends Control
 ## drawn in code until the real pixel art is made.
 
 signal seat_clicked(seat: int)
+## The player picked an answer to a customer's question.
+signal answered(seat: int, index: int)
 
 const HALF_W := 20.0
 const HALF_H := 10.0
 ## Where customers stand at the counter, in tile coordinates.
-const SEAT_TILES: Array[Vector2] = [Vector2(1.9, 2.9), Vector2(3.4, 2.9), Vector2(4.9, 2.9), Vector2(6.4, 2.9)]
+## The fifth spot, at the bench, opens with the bench upgrade.
+const SEAT_TILES: Array[Vector2] = [Vector2(1.9, 2.9), Vector2(3.4, 2.9), Vector2(4.9, 2.9), Vector2(6.4, 2.9), Vector2(7.9, 2.9)]
 ## The edge of the road that customers walk in from and leave to.
 const ROAD_EDGE_Y := 6.6
 const WALK_SECONDS := 0.7
@@ -29,13 +32,17 @@ var _arrive: Array[float] = []
 var _leavers: Array[Dictionary] = []
 var _origin := Vector2.ZERO
 var _font: Font
+var _speech: SpeechBubbles
+var _life: StreetLife
 
 
 func _init(service: Service) -> void:
 	_service = service
-	for i in Catalog.SEATS:
+	for i in service.seats.size():
 		_arrive.append(1.0)
 	clip_contents = true
+	_speech = SpeechBubbles.new(self)
+	_life = StreetLife.new(self)
 
 
 func _ready() -> void:
@@ -46,15 +53,33 @@ func on_arrived(seat: int) -> void:
 	_arrive[seat] = 0.0
 
 
+func say(seat: int, text: String) -> void:
+	_speech.say(seat, text)
+
+
+func ask(seat: int, question: String, options: Array) -> void:
+	_speech.ask(seat, question, options)
+
+
+## Where a seated customer's head is, in this view's coordinates.
+func seat_point(seat: int) -> Vector2:
+	return _iso(SEAT_TILES[seat], 22.0)
+
+
+func service() -> Service:
+	return _service
+
+
+func time() -> float:
+	return _time
+
+
 func on_left(seat: int, customer: Dictionary, outcome: String) -> void:
 	var text := "Shop's closing!"
 	var color := Style.MUTED
 	if outcome == "served":
-		text = "+%s" % Style.rupees(int(customer["bill"]) + int(customer.get("tip", 0)))
-		color = Style.GOOD
-		if customer["grumpy"]:
-			text += " Finally!"
-			color = Style.WARN
+		text = "%s +%s" % [customer.get("reaction", ""), Style.rupees(int(customer["bill"]) + int(customer.get("tip", 0)))]
+		color = Style.WARN if customer["grumpy"] else Style.GOOD
 	elif outcome == "out_of_stock":
 		text = "Nothing left? Okay…"
 		color = Style.MUTED
@@ -68,16 +93,25 @@ func _process(delta: float) -> void:
 	for leaver in _leavers:
 		leaver["t"] += delta
 	_leavers = _leavers.filter(func(l: Dictionary) -> bool: return l["t"] < LEAVE_SECONDS)
+	_speech.update(delta)
+	_life.update(delta)
 	queue_redraw()
 
 
 func _gui_input(event: InputEvent) -> void:
 	var motion := event as InputEventMouseMotion
 	if motion != null:
-		mouse_default_cursor_shape = CURSOR_POINTING_HAND if _seat_at(motion.position) >= 0 else CURSOR_ARROW
+		var pointing := _seat_at(motion.position) >= 0 or _speech.option_at(motion.position).size() > 0
+		mouse_default_cursor_shape = CURSOR_POINTING_HAND if pointing else CURSOR_ARROW
 		return
 	var click := event as InputEventMouseButton
 	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		var option := _speech.option_at(click.position)
+		if option.size() > 0:
+			_speech.clear(option[0])
+			answered.emit(option[0], option[1])
+			accept_event()
+			return
 		var seat := _seat_at(click.position)
 		if seat >= 0:
 			seat_clicked.emit(seat)
@@ -85,7 +119,7 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _seat_at(point: Vector2) -> int:
-	for seat in Catalog.SEATS:
+	for seat in _service.seats.size():
 		if _service.seats[seat] == null or _arrive[seat] < 1.0:
 			continue
 		var feet := _iso(SEAT_TILES[seat])
@@ -93,6 +127,8 @@ func _seat_at(point: Vector2) -> int:
 		var items := 0
 		for item in order:
 			items += int(order[item])
+		if _service.seats[seat].get("usual_hidden", false):
+			items = 2
 		var body := Rect2(feet + Vector2(-10, -32), Vector2(20, 34))
 		if body.has_point(point) or _bubble_box(seat, items).grow(2.0).has_point(point):
 			return seat
@@ -110,19 +146,23 @@ func _draw() -> void:
 	_draw_ground()
 	_draw_stall()
 	_draw_tree(Vector2(-0.6, 3.6))
-	_draw_cow(Vector2(8.4, 3.9))
-	for seat in Catalog.SEATS:
+	if _service.state.has_upgrade("bench"):
+		_box(Vector2(7.1, 2.3), Vector2(8.7, 2.7), 9, WOOD.lightened(0.1), WOOD.darkened(0.1), WOOD.darkened(0.3))
+	_draw_cow(Vector2(9.4, 3.9))
+	for seat in _service.seats.size():
 		var customer = _service.seats[seat]
 		if customer != null:
-			_draw_person(customer["type"], _walk_tile(seat), _arrive[seat] < 1.0, 1.0)
+			draw_person(customer["type"], _walk_tile(seat), _arrive[seat] < 1.0, 1.0)
 	for leaver in _leavers:
 		var t: float = leaver["t"] / LEAVE_SECONDS
 		var from: Vector2 = leaver["tile"]
 		var tile := from.lerp(Vector2(from.x + 1.5, ROAD_EDGE_Y + 0.6), t)
-		_draw_person(leaver["type"], tile, true, 1.0 - t)
+		draw_person(leaver["type"], tile, true, 1.0 - t)
+	_life.draw_passers_by()
 	_draw_traffic()
+	_life.draw_rain()
 	_draw_light()
-	for seat in Catalog.SEATS:
+	for seat in _service.seats.size():
 		if _service.seats[seat] != null and _arrive[seat] >= 1.0:
 			_draw_bubble(seat, _service.seats[seat])
 	for leaver in _leavers:
@@ -130,6 +170,7 @@ func _draw() -> void:
 		var at := _iso(leaver["tile"], 40.0 + t * 14.0)
 		var color: Color = leaver["color"]
 		_text(at, leaver["text"], Color(color, 1.0 - t * t), HORIZONTAL_ALIGNMENT_CENTER)
+	_speech.draw()
 
 
 func _walk_tile(seat: int) -> Vector2:
@@ -190,6 +231,15 @@ func _draw_stall() -> void:
 		draw_rect(Rect2(hook + Vector2(-5 + i * 2, 4 + (i % 2) * 2), Vector2(2, 8)), Color("e8d23c"))
 	# Sign board on top of the back wall.
 	var sign_at := _iso(Vector2(4.0, -0.15), 80)
+	if _service.state.has_upgrade("sign"):
+		var lit := _service.clock.minutes() > 1050.0
+		for i in 12:
+			var bulb := sign_at + Vector2(-36 + i * 6.5, -12)
+			var on := lit and (int(_time * 4.0) + i) % 3 != 0
+			draw_rect(Rect2(bulb, Vector2(2, 2)), Color("fff3a8") if on else Color("8a7a4a"))
+			draw_rect(Rect2(bulb + Vector2(0, 16), Vector2(2, 2)), Color("fff3a8") if on else Color("8a7a4a"))
+		if lit:
+			draw_circle(sign_at + Vector2(0, -4), 44.0, Color(1.0, 0.95, 0.6, 0.12))
 	draw_rect(Rect2(sign_at + Vector2(-34, -10), Vector2(68, 13)), Color("e8c547"))
 	draw_rect(Rect2(sign_at + Vector2(-34, -10), Vector2(68, 13)), Color("b5321f"), false, 1.0)
 	_text(sign_at + Vector2(0, 0), "TEA KADAI", Color("b5321f"), HORIZONTAL_ALIGNMENT_CENTER)
@@ -206,29 +256,47 @@ func _draw_counter_things() -> void:
 			draw_rect(Rect2(jar + Vector2(-3, -fill), Vector2(6, fill)), Color("d9a55b"))
 		draw_rect(Rect2(jar + Vector2(-4, -14), Vector2(8, 2)), Color("e0604e"))
 	# Ready tea glasses along the middle of the counter, vadai piled on a plate.
-	var teas: Array = _service.ready["tea"]
-	for i in teas.size():
-		Style.draw_item(self, "tea", _iso(Vector2(2.7 + i * 0.36, 1.6), 26), teas[i])
+	var glass := 0
+	for kind in Catalog.GLASSES:
+		for quality in _service.ready[kind]:
+			Style.draw_item(self, kind, _iso(Vector2(2.7 + glass * 0.36, 1.6), 26), quality)
+			glass += 1
 	var vadai: Array = _service.ready["vadai"]
 	if not vadai.is_empty():
 		var plate := _iso(Vector2(5.0, 1.6), 21)
 		draw_rect(Rect2(plate + Vector2(-9, -1), Vector2(18, 3)), Color("d8dde3"))
 		for i in vadai.size():
 			Style.draw_item(self, "vadai", plate + Vector2(-5 + (i % 3) * 5, -4 - (i / 3) * 4), vadai[i])
-	# Stove and big milk pot with steam on the right.
+	# Stove and milk pot with steam on the right. The upgrade is a bigger pot.
 	var stove := _iso(Vector2(5.9, 1.6), 20)
+	var pot := 1.4 if _service.state.has_upgrade("pot") else 1.0
 	draw_rect(Rect2(stove + Vector2(-9, -4), Vector2(18, 4)), Color("2b2b2b"))
-	draw_rect(Rect2(stove + Vector2(-8, -20), Vector2(16, 16)), Color("b8863b"))
-	draw_rect(Rect2(stove + Vector2(-9, -22), Vector2(18, 3)), Color("d9a55b"))
+	draw_rect(Rect2(stove + Vector2(-8, -20) * pot, Vector2(16, 16) * pot), Color("b8863b"))
+	draw_rect(Rect2(stove + Vector2(-9 * pot, -20 * pot - 2), Vector2(18 * pot, 3)), Color("d9a55b"))
+	if _service.state.has_upgrade("fan"):
+		var fan := _iso(Vector2(2.6, 0.2), 40)
+		draw_rect(Rect2(fan + Vector2(-1, 0), Vector2(2, 10)), Color("4a4a4a"))
+		draw_circle(fan, 7.0, Color(0.85, 0.88, 0.92, 0.35))
+		for i in 3:
+			var a := _time * 18.0 + i * TAU / 3.0
+			draw_line(fan, fan + Vector2(cos(a), sin(a) * 0.6) * 7.0, Color("dfe5ea"), 2.0)
+		draw_circle(fan, 1.5, Color("4a4a4a"))
 	for i in 3:
 		var x := stove.x - 5 + i * 5 + sin(_time * 2.5 + i) * 2.0
 		var y := stove.y - 26 - fmod(_time * 10.0 + i * 5.0, 16.0)
 		draw_rect(Rect2(x, y, 1, 3), Color(1, 1, 1, 0.45))
 
 
-func _draw_person(type_id: String, tile: Vector2, walking: bool, alpha: float) -> void:
-	var kind: Dictionary = Catalog.CUSTOMERS[type_id]
-	var feet := _iso(tile).round()
+func draw_person(type_id: String, tile: Vector2, walking: bool, alpha: float) -> void:
+	draw_figure(Service.kind_of(type_id), _iso(tile).round(), walking, alpha)
+
+
+## A little person standing on "feet". "look" needs shirt, legs and hair
+## colours; a "bag" colour adds a backpack.
+func draw_figure(look: Dictionary, feet: Vector2, walking: bool, alpha: float, scale: float = 1.0) -> void:
+	var kind := look
+	draw_set_transform(feet, 0.0, Vector2(scale, scale))
+	feet = Vector2.ZERO
 	var bob := absf(sin(_time * 12.0)) * 1.5 if walking else 0.0
 	var shirt: Color = kind["shirt"]
 	var legs: Color = kind["legs"]
@@ -240,6 +308,10 @@ func _draw_person(type_id: String, tile: Vector2, walking: bool, alpha: float) -
 	draw_rect(Rect2(feet + Vector2(4, -18 - bob), Vector2(1, 7)), Color(Style.SKIN, alpha))
 	draw_rect(Rect2(feet + Vector2(-3, -26 - bob), Vector2(6, 7)), Color(Style.SKIN, alpha))
 	draw_rect(Rect2(feet + Vector2(-3, -27 - bob), Vector2(6, 5)), Color(hair, alpha))
+	if kind.has("bag"):
+		draw_rect(Rect2(feet + Vector2(-5, -18 - bob), Vector2(10, 7)), Color(kind["bag"], alpha))
+		draw_rect(Rect2(feet + Vector2(-3, -25 - bob), Vector2(6, 1)), Color(0.1, 0.1, 0.1, alpha))
+	draw_set_transform(Vector2.ZERO)
 
 
 func _draw_bubble(seat: int, customer: Dictionary) -> void:
@@ -248,7 +320,10 @@ func _draw_bubble(seat: int, customer: Dictionary) -> void:
 	for item in Catalog.MENU_ORDER:
 		for i in int(order.get(item, 0)):
 			items.append(item)
-	var box := _bubble_box(seat, items.size())
+	var hidden: bool = customer.get("usual_hidden", false)
+	var box := _bubble_box(seat, 1 if hidden else items.size())
+	if hidden:
+		box = Rect2(box.position - Vector2(14, 0), box.size + Vector2(28, 0))
 	var feet := _iso(SEAT_TILES[seat]).round()
 	var ready := _service.can_fill(seat)
 	var grumpy: bool = customer["grumpy"]
@@ -259,6 +334,12 @@ func _draw_bubble(seat: int, customer: Dictionary) -> void:
 	elif grumpy:
 		draw_rect(box.grow(1.0), Style.BAD, false, 2.0)
 	_text(box.position + Vector2(4, 17), str(seat + 1), Style.LINE, HORIZONTAL_ALIGNMENT_LEFT)
+	if customer.has("regular"):
+		var name_text: String = Story.REGULARS[customer["regular"]]["name"]
+		_text(Vector2(box.get_center().x, box.position.y - 3), name_text, Style.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	if hidden:
+		_text(box.position + Vector2(14, 17), "The usual?", Style.INK, HORIZONTAL_ALIGNMENT_LEFT)
+		items.clear()
 	# Items you could hand over right now are bright; the rest are faded.
 	var on_hand := {}
 	for i in items.size():
@@ -277,6 +358,24 @@ func _draw_bubble(seat: int, customer: Dictionary) -> void:
 	var bar_color := Style.GOOD if calm > 0.5 else (Style.WARN if calm > 0.25 else Style.BAD)
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y), Vector2(box.size.x, 3)), Color(0, 0, 0, 0.5))
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y), Vector2(box.size.x * calm, 3)), bar_color)
+	if customer["grumpy"]:
+		_text(box.position + Vector2(box.size.x + 2, 10), "grr", Style.BAD, HORIZONTAL_ALIGNMENT_LEFT, 8)
+
+
+## Order bubbles currently on screen, so speech bubbles can stay clear of them.
+func order_bubble_rects() -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for seat in _service.seats.size():
+		var customer = _service.seats[seat]
+		if customer == null or _arrive[seat] < 1.0:
+			continue
+		var items := 0
+		for item in customer["order"]:
+			items += int(customer["order"][item])
+		if customer.get("usual_hidden", false):
+			items = 2
+		rects.append(_bubble_box(seat, items).grow(3.0))
+	return rects
 
 
 ## The order bubble above a seat. Odd seats sit higher so neighbouring bubbles

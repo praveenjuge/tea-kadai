@@ -33,6 +33,8 @@ func _init() -> void:
 	_save("horn", _horn())
 	_save("bell", _bell())
 	_save("street_loop", _street_loop())
+	_save("rain_loop", _rain_loop())
+	_save("rush_loop", _rush_loop())
 	_save("music_day", _music(
 		[0, 2, 4, -1, 5, 4, 2, -1, 1, 2, 4, 2, 0, -1, -1, -1,
 		 2, 4, 5, 7, 5, 4, 2, -1, 4, 2, 1, 0, -1, -1, 0, -1], 0.6, 261.63, 0.0))
@@ -205,6 +207,37 @@ func _street_loop() -> PackedFloat32Array:
 			var mix := float(i) / overlap
 			v = raw[i] * mix + raw[length + i] * (1.0 - mix)
 		b[i] = v * (0.8 + 0.2 * sin(TAU * float(i) / length))
+	return b
+
+
+## Steady rain on a tin awning: soft hiss plus lots of tiny drops.
+func _rain_loop() -> PackedFloat32Array:
+	var length := int(4.0 * RATE)
+	var b := _buf(4.0)
+	var low := 0.0
+	for i in length:
+		low += (rng.randf_range(-1.0, 1.0) - low) * 0.35
+		b[i] = low * 0.35
+	for i in 900:
+		var at := rng.randf_range(0.0, 3.98)
+		var f := rng.randf_range(2500.0, 5000.0)
+		_tone(b, at, 0.012, f, f * 0.8, rng.randf_range(0.05, 0.2), 200.0)
+	return b
+
+
+## A light mridangam-style beat for the rushes, at the day music's tempo.
+func _rush_loop() -> PackedFloat32Array:
+	var beat := 0.3
+	var pattern := [1, 0, 2, 0, 1, 2, 2, 0, 1, 0, 2, 0, 1, 2, 0, 2]
+	var b := _buf(pattern.size() * beat)
+	for i in pattern.size():
+		match pattern[i]:
+			1:
+				_tone(b, i * beat, 0.25, 110.0, 70.0, 1.0, 14.0)
+				_noise(b, i * beat, 0.02, 0.3, 0.0, 0.5)
+			2:
+				_tone(b, i * beat, 0.08, 520.0, 480.0, 0.5, 40.0)
+				_noise(b, i * beat, 0.03, 0.4, 60.0, 0.1)
 	return b
 
 
