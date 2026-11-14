@@ -48,6 +48,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		sound.stop_all()
+
+
+func _quit() -> void:
+	sound.stop_all()
+	get_tree().quit()
+
+
 ## Shows a menu overlay above whatever screen is up.
 func open_overlay(overlay: MenuOverlay) -> MenuOverlay:
 	overlay.theme = theme
@@ -116,7 +126,7 @@ func _on_title_choice(choice: String) -> void:
 		"credits":
 			open_overlay(MenuOverlay.credits())
 		"quit":
-			get_tree().quit()
+			_quit()
 
 
 func _start_new_game() -> void:

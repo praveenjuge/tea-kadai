@@ -132,6 +132,17 @@ func _start_position(loop_name: String) -> float:
 	return 0.0
 
 
+## Stops everything, so nothing is still playing when the game closes.
+func stop_all() -> void:
+	_street = false
+	for player in _pool:
+		player.stop()
+		player.stream = null
+	for loop_name in _loops:
+		_loops[loop_name].stop()
+		_loops[loop_name].stream = null
+
+
 func toggle_mute() -> bool:
 	var muted := not AudioServer.is_bus_mute(0)
 	AudioServer.set_bus_mute(0, muted)
