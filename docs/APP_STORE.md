@@ -12,10 +12,10 @@ A sandboxed test build of this preset has been run on this Mac and plays normall
 
 You already have the Apple Developer Program and an **Apple Distribution** certificate in your keychain.
 
-1. **App ID.** In [Identifiers](https://developer.apple.com/account/resources/identifiers/list), click **+** → **App IDs** → **App**. Platform macOS, description "Tea Kadai", explicit bundle ID `dev.teakadai.game`. No capabilities needed.
+1. **App ID.** In [Identifiers](https://developer.apple.com/account/resources/identifiers/list), click **+** → **App IDs** → **App**. Platform macOS, description "Tea Kadai", explicit bundle ID `teakadai.praveenjuge.game`. No capabilities needed.
 2. **Installer certificate.** In [Certificates](https://developer.apple.com/account/resources/certificates/list), click **+** → **Mac Installer Distribution**. Upload a certificate request (Keychain Access → Certificate Assistant → Request a Certificate From a Certificate Authority, saved to disk), download the certificate and double-click it. It shows in your keychain as **3rd Party Mac Developer Installer: …**.
-3. **Provisioning profile.** In [Profiles](https://developer.apple.com/account/resources/profiles/list), click **+** → **Mac App Store Connect** (under Distribution), pick the `dev.teakadai.game` App ID and your Apple Distribution certificate, name it "Tea Kadai App Store", and download the `.provisionprofile`. Keep it somewhere stable, like `~/Documents/Apple/TeaKadai_AppStore.provisionprofile`.
-4. **App record.** In [App Store Connect](https://appstoreconnect.apple.com/apps), click **+** → **New App**: platform macOS, name "Tea Kadai", primary language English (UK or US), bundle ID `dev.teakadai.game`, SKU `tea-kadai`.
+3. **Provisioning profile.** In [Profiles](https://developer.apple.com/account/resources/profiles/list), click **+** → **Mac App Store Connect** (under Distribution), pick the `teakadai.praveenjuge.game` App ID and your Apple Distribution certificate, name it "Tea Kadai App Store", and download the `.provisionprofile`. Keep it somewhere stable, like `~/Documents/Apple/TeaKadai_AppStore.provisionprofile`.
+4. **App record.** In [App Store Connect](https://appstoreconnect.apple.com/apps), click **+** → **New App**: platform macOS, name "Tea Kadai", primary language English (UK or US), bundle ID `teakadai.praveenjuge.game`, SKU `tea-kadai`.
 5. **Transporter.** Install [Transporter](https://apps.apple.com/app/transporter/id1450874784) from the Mac App Store and sign in with your Apple ID.
 
 ## Each release
