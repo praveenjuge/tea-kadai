@@ -169,6 +169,95 @@ static func draw_auto_stand(view: StreetView, scenery: StreetScenery) -> void:
 		view.draw_person("auto_driver", DRIVERS[i], false, 1.0, "wave" if i == 0 and int(view.time()) % 9 == 0 else "")
 
 
+## The kadai gets grander with each big-number milestone: bunting, a gold
+## frame on the sign, a rooftop billboard, sweeping spotlights, a red carpet,
+## and fireworks over the street.
+static func draw_grandeur(view: StreetView, level: int, time: float) -> void:
+	if level <= 0:
+		return
+	var x0 := StreetView.SHOP_FROM.x
+	var x1 := StreetView.SHOP_TO.x
+	var front := StreetView.SHOP_TO.y
+	var flag_colors := [Color("e0604e"), Color("e8c547"), Color("7cc46a"), Color("4a90d9")]
+	# Bunting across the front.
+	var flags := 14
+	for i in flags:
+		var t := float(i) / flags
+		var sag := sin(t * PI) * 6.0
+		var at := view._iso(Vector2(lerpf(x0, x1, t), front), StreetView.SHOP_HEIGHT - 6 - sag)
+		var flutter := sin(time * 4.0 + i) * 0.8
+		view.draw_colored_polygon(PackedVector2Array([at, at + Vector2(5, 2.5), at + Vector2(1.5 + flutter, 7)]), flag_colors[i % 4])
+	var sign_at := view._iso(Vector2((x0 + x1) / 2.0, front), StreetView.SHOP_OPENING + 34)
+	if level >= 2:
+		view.draw_rect(Rect2(sign_at + Vector2(-39, -14), Vector2(78, 21)), Color("f2c14e"), false, 2.0)
+		for corner in [Vector2(-40, -15), Vector2(36, -15), Vector2(-40, 5), Vector2(36, 5)]:
+			view.draw_rect(Rect2(sign_at + corner, Vector2(4, 4)), Color("fff1c4"))
+	if level >= 3:
+		var roof := view._iso(Vector2((x0 + x1) / 2.0, (StreetView.SHOP_FROM.y + front) / 2.0), StreetView.SHOP_HEIGHT)
+		view.draw_line(roof + Vector2(-14, 0), roof + Vector2(-14, -14), Color("4a4a4a"), 1.0)
+		view.draw_line(roof + Vector2(14, 0), roof + Vector2(14, -14), Color("4a4a4a"), 1.0)
+		view.draw_rect(Rect2(roof + Vector2(-30, -34), Vector2(60, 20)), Color("b5321f"))
+		view.draw_rect(Rect2(roof + Vector2(-30, -34), Vector2(60, 20)), Color("f2c14e"), false, 1.0)
+		view._text(roof + Vector2(0, -26), "No.1 TEA", Color("fff1c4"), HORIZONTAL_ALIGNMENT_CENTER, 8)
+		view._text(roof + Vector2(0, -17), "IN CHENNAI", Color("f2c14e"), HORIZONTAL_ALIGNMENT_CENTER, 6)
+	if level >= 4:
+		var top := view._iso(Vector2(x0, StreetView.SHOP_FROM.y), StreetView.SHOP_HEIGHT)
+		for i in 2:
+			var angle := -PI / 2.0 + sin(time * 0.6 + i * 2.0) * 0.6
+			var base := top + Vector2(10 + i * 100, 0)
+			var tip := base + Vector2(cos(angle), sin(angle)) * 120.0
+			var side := Vector2(-sin(angle), cos(angle)) * 14.0
+			view.draw_colored_polygon(PackedVector2Array([base, tip + side, tip - side]), Color(1.0, 0.95, 0.7, 0.12))
+	if level >= 5:
+		var carpet := PackedVector2Array([view._iso(Vector2(5.9, 1.2)), view._iso(Vector2(6.6, 1.2)), view._iso(Vector2(6.6, 5.3)), view._iso(Vector2(5.9, 5.3))])
+		view.draw_colored_polygon(carpet, Color("a3202a"))
+		view.draw_polyline(PackedVector2Array([carpet[0], carpet[3]]), Color("f2c14e"), 1.0)
+		view.draw_polyline(PackedVector2Array([carpet[1], carpet[2]]), Color("f2c14e"), 1.0)
+	if level >= 6:
+		_draw_fireworks(view, time)
+
+
+static func _draw_fireworks(view: StreetView, time: float) -> void:
+	for i in 3:
+		var cycle := fmod(time * 0.5 + i * 0.37, 1.0)
+		if cycle > 0.6:
+			continue
+		var seed_value := floori(time * 0.5 + i * 0.37) * 31 + i * 7
+		var center := Vector2(fmod(seed_value * 53.0, view.size.x * 0.8) + view.size.x * 0.1, 20.0 + fmod(seed_value * 17.0, 30.0))
+		var radius := cycle * 30.0
+		var color: Color = [Color("ffca3a"), Color("ff6fa8"), Color("6aa0d9")][i]
+		for ray in 12:
+			var dir := Vector2.from_angle(TAU * ray / 12.0)
+			view.draw_rect(Rect2(center + dir * radius, Vector2(2, 2)), Color(color, 1.0 - cycle / 0.6))
+
+
+## Helpers that stay put: a tea cart at the kerb, the college gate stall and
+## the film crew's van, once you own one.
+static func draw_helper_spots(view: StreetView, state: KadaiState, time: float) -> void:
+	if state.helper_count("college_stall") > 0:
+		var stall := Vector2(-3.4, 1.5)
+		view._box(stall, stall + Vector2(0.7, 0.45), 12, Color("e8e2cc"), Color("2f6db5"), Color("24548c"))
+		var sign := view._iso(stall + Vector2(0.35, 0.2), 30)
+		view.draw_line(sign + Vector2(0, 2), sign + Vector2(0, 14), Color("5a5654"), 1.0)
+		view.draw_rect(Rect2(sign + Vector2(-12, -6), Vector2(24, 8)), Color("2f6db5"))
+		view._text(sign, "COLLEGE", Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 6)
+	if state.helper_count("bus_cart") > 0:
+		var cart := Vector2(1.3, 6.15)
+		view._box(cart, cart + Vector2(0.8, 0.4), 12, Color("c9ced6"), Color("4a90d9"), Color("2f6db5"))
+		var top := view._iso(cart + Vector2(0.4, 0.2), 12)
+		view.draw_line(top, top + Vector2(0, -14), Color("5a5654"), 1.0)
+		view.draw_colored_polygon(PackedVector2Array([top + Vector2(-12, -12), top + Vector2(12, -12), top + Vector2(0, -20)]), Color("e0604e"))
+		var steam := fmod(time * 10.0, 10.0)
+		view.draw_rect(Rect2(top + Vector2(4, -2 - steam), Vector2(1, 2)), Color(1, 1, 1, 0.5 * (1.0 - steam / 10.0)))
+	if state.helper_count("film_catering") > 0:
+		var van := Vector2(2.8, 6.2)
+		view._box(van, van + Vector2(1.4, 0.5), 18, Color("eef0f2"), Color("d9dde2"), Color("aab2bb"))
+		var side := view._iso(van + Vector2(0.7, 0.5), 10)
+		view._text(side, "SHOOTING", Color("b5321f"), HORIZONTAL_ALIGNMENT_CENTER, 6)
+		for wheel in [Vector2(0.3, 0.5), Vector2(1.1, 0.5)]:
+			view.draw_circle(view._iso(van + wheel), 2.5, Color("1a1a1a"))
+
+
 ## Festival touches around the kadai.
 static func draw_festival(view: StreetView, day: int, time: float) -> void:
 	var special := Chennai.festival(day)

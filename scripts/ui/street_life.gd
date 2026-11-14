@@ -12,6 +12,13 @@ const LEFT_END := -14.0
 const RIGHT_END := 20.0
 const SHIRTS: Array[Color] = [Color("e0604e"), Color("4a90d9"), Color("7cc46a"), Color("e8c547"),
 	Color("eef0f2"), Color("b05fc4"), Color("e8742f"), Color("5ac4b8")]
+## Your helpers out on their rounds, once you own them: how they look and
+## what they carry.
+const WALKING_HELPERS := {
+	"flask_boy": {"look": {"shirt": Color("eef0f2"), "legs": Color("6b5a3a"), "hair": Color("1e1612"), "skin": Color("7a4a2e")}, "prop": "flask"},
+	"office_runner": {"look": {"shirt": Color("5a7fb5"), "legs": Color("2d3a5a"), "hair": Color("16110e"), "skin": Color("8d5a3b"), "mustache": true}, "prop": "tray"},
+	"train_vendor": {"look": {"shirt": Color("c0392b"), "legs": Color("f4f1e8"), "hair": Color("1e1612"), "skin": Color("6e4329"), "hat": Color("eef0f2")}, "prop": "kettle"},
+}
 const UMBRELLAS: Array[Color] = [Color("1f1f1f"), Color("c0392b"), Color("2f6db5"), Color("7b4fb8")]
 
 var _view: StreetView
@@ -61,6 +68,9 @@ func draw_passers_by() -> void:
 				for offset in [Vector2(-5, 0), Vector2(5, 2)]:
 					_view.draw_figure(walker["look"], feet + offset, true, 1.0, 0.75)
 				_draw_umbrella(walker, feet, 0.8)
+			"helper":
+				_view.draw_figure(walker["look"], feet, true, 1.0)
+				_draw_prop(walker["prop"], feet, signf(float(walker["speed"])))
 			"cyclist":
 				_draw_cyclist(walker, feet)
 			"dog":
@@ -97,6 +107,16 @@ func _spawn_walker(raining: bool) -> void:
 		kind = "dog"
 	elif roll < 0.44 and school_time:
 		kind = "kids"
+	var owned: Array[String] = []
+	for id in WALKING_HELPERS:
+		if _view.service().state.helper_count(id) > 0:
+			owned.append(id)
+	if not owned.is_empty() and not raining and _rng.randf() < 0.3:
+		var helper: Dictionary = WALKING_HELPERS[owned[_rng.randi() % owned.size()]]
+		var heading := 1.0 if _rng.randf() < 0.5 else -1.0
+		_walkers.append({"kind": "helper", "x": LEFT_END if heading > 0.0 else RIGHT_END, "lane": LANES[_rng.randi() % LANES.size()],
+			"speed": 1.6 * heading, "look": helper["look"], "prop": helper["prop"], "umbrella": Color(0, 0, 0, 0)})
+		return
 	var direction := 1.0 if _rng.randf() < 0.5 else -1.0
 	var speed: float = {"walker": 1.2, "kids": 1.0, "cyclist": 3.4, "dog": 1.8}[kind] * _rng.randf_range(0.85, 1.15)
 	var look := {
@@ -123,6 +143,27 @@ func _spawn_walker(raining: bool) -> void:
 		"look": look,
 		"umbrella": UMBRELLAS[_rng.randi() % UMBRELLAS.size()] if raining and kind != "dog" else Color(0, 0, 0, 0),
 	})
+
+
+## What a helper carries: a steel flask, a tray of glasses, or a kettle.
+func _draw_prop(prop: String, feet: Vector2, facing: float) -> void:
+	match prop:
+		"flask":
+			var hand := feet + Vector2(7 * facing, -18)
+			_view.draw_rect(Rect2(hand + Vector2(-2, -1), Vector2(4, 9)), Color("c9ced6"))
+			_view.draw_rect(Rect2(hand + Vector2(-2, -1), Vector2(1, 9)), Color("eef0f2"))
+			_view.draw_rect(Rect2(hand + Vector2(-1, -3), Vector2(2, 2)), Color("4a4a4a"))
+		"tray":
+			var tray := feet + Vector2(0, -44)
+			_view.draw_rect(Rect2(tray + Vector2(-8, 0), Vector2(16, 2)), Color("aab2bb"))
+			for i in 4:
+				_view.draw_rect(Rect2(tray + Vector2(-7 + i * 4, -4), Vector2(3, 4)), Style.TEA)
+				_view.draw_rect(Rect2(tray + Vector2(-7 + i * 4, -4), Vector2(3, 1)), Style.FROTH)
+		"kettle":
+			var hand := feet + Vector2(7 * facing, -16)
+			_view.draw_circle(hand + Vector2(0, 3), 4.0, Color("aab2bb"))
+			_view.draw_line(hand + Vector2(3 * facing, 2), hand + Vector2(7 * facing, -1), Color("8a9098"), 1.0)
+			_view.draw_arc(hand, 3.0, PI, TAU, 6, Color("4a4a4a"), 1.0)
 
 
 func _draw_umbrella(walker: Dictionary, feet: Vector2, scale: float) -> void:

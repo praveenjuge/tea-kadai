@@ -29,6 +29,9 @@ signal golden_appeared(spot: Vector2)
 signal golden_gone
 ## Helpers earned some money (for a little floating number).
 signal helpers_earned(amount: int)
+## An achievement or a big-number milestone was just reached.
+signal achieved(entry: Dictionary)
+signal big_number(milestone: Dictionary)
 
 const SUPPLY_CHECK_SECONDS := 1.0
 const STREAK_BONUS_MAX := 5
@@ -68,6 +71,7 @@ var _golden_timer := 0.0
 var _tea_idle := 99.0
 var _fry_idle := 99.0
 var _staff_timer := 0.0
+var _progress_timer := 1.0
 var _spawn_timer := 2.0
 var _supply_timer := SUPPLY_CHECK_SECONDS
 var _golden_told := false
@@ -93,6 +97,9 @@ func _init(kadai: KadaiState, seed_value: int = -1, ambient: bool = false) -> vo
 	tea.poured.connect(_on_tea_poured)
 	_golden_timer = _next_golden_gap()
 	if not ambient:
+		happened.connect(_count)
+		# Yesterday's news has been read by now.
+		state.news.clear()
 		radio = RadioShow.new(self)
 		for id in Story.REGULAR_ORDER:
 			if state.day >= Story.first_day(id):
@@ -118,6 +125,7 @@ func update(delta: float) -> void:
 			visit.update(delta)
 		_update_helpers(delta)
 		radio.update(delta)
+		_update_progress(delta)
 		_update_staff(delta)
 		_update_golden(delta)
 	if clock.is_over():
@@ -442,6 +450,36 @@ func _needed(items: Array[String]) -> String:
 	return best
 
 
+## Notes all-time stats from what happens at the counter.
+func _count(event: String, _amount: int) -> void:
+	match event:
+		"poured_perfect":
+			state.count("poured")
+			state.count("perfect")
+		"poured_good", "poured_flat":
+			state.count("poured")
+		"vadai_drop":
+			state.count("fried")
+		"golden":
+			state.count("golden")
+		"frenzy":
+			state.count("golden")
+			state.count("frenzies")
+
+
+## Once a second: time played, new achievements and big-number milestones.
+func _update_progress(delta: float) -> void:
+	_progress_timer -= delta
+	if _progress_timer > 0.0:
+		return
+	_progress_timer = 1.0
+	state.count("seconds")
+	for entry in state.check_achievements():
+		achieved.emit(entry)
+	for milestone in state.check_big_numbers():
+		big_number.emit(milestone)
+
+
 ## Now and then a golden glass appears on the street for a few seconds.
 func _update_golden(delta: float) -> void:
 	if golden_left > 0.0:
@@ -554,6 +592,7 @@ func _finish_customer(seat: int) -> void:
 	seats[seat] = null
 	state.record_tip(tip)
 	state.today["served"] += 1
+	state.count("served")
 	state.week["served"] = int(state.week["served"]) + 1
 	var points := Catalog.POINTS_GRUMPY if customer["grumpy"] else Catalog.POINTS_SERVED
 	if avg >= 0.95 and not customer["grumpy"]:

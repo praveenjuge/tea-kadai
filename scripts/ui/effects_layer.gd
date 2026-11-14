@@ -19,6 +19,8 @@ var _banner := {}
 var _bits: Array[Dictionary] = []
 ## Rising numbers: {"at", "text", "color", "t"}.
 var _floats: Array[Dictionary] = []
+## Trophy notes waiting to slide in at the top right, one at a time.
+var _trophies: Array[Dictionary] = []
 var _rng := RandomNumberGenerator.new()
 
 
@@ -68,6 +70,11 @@ func _add_bit(at: Vector2, vel: Vector2, life: float, color: Color, bit_size: fl
 		"spin": _rng.randf_range(0.0, TAU)})
 
 
+## A small trophy note that slides in under the money.
+func trophy(text: String) -> void:
+	_trophies.append({"text": text, "t": 0.0})
+
+
 func banner(text: String, color: Color) -> void:
 	_banner = {"text": text, "color": color, "t": 0.0}
 
@@ -94,6 +101,10 @@ func _process(delta: float) -> void:
 	for item in _floats:
 		item["t"] += delta
 	_floats = _floats.filter(func(f: Dictionary) -> bool: return f["t"] < 1.0)
+	if not _trophies.is_empty():
+		_trophies[0]["t"] += delta
+		if _trophies[0]["t"] > 3.0:
+			_trophies.pop_front()
 	if not _banner.is_empty():
 		_banner["t"] += delta
 		if _banner["t"] > BANNER_SECONDS:
@@ -129,8 +140,22 @@ func _draw() -> void:
 		var color: Color = item["color"]
 		draw_string_outline(font, at, item["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, Style.FONT_SIZE, 3, Color(Style.BG, 1.0 - t))
 		draw_string(font, at, item["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, Style.FONT_SIZE, Color(color, 1.0 - t))
+	if not _trophies.is_empty():
+		_draw_trophy(_trophies[0])
 	if not _banner.is_empty():
 		_draw_banner()
+
+
+func _draw_trophy(note: Dictionary) -> void:
+	var t: float = note["t"]
+	var slide := clampf(t / 0.25, 0.0, 1.0) * (1.0 - clampf((t - 2.7) / 0.3, 0.0, 1.0))
+	var font := get_theme_default_font()
+	var width := font.get_string_size(note["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, Style.FONT_SIZE).x + 30.0
+	var rect := Rect2(size.x - width * ease(slide, 0.4) - 4, 34, width, 18)
+	draw_rect(rect, Color(Style.BG, 0.92))
+	draw_rect(rect, Color("e8c547"), false, 1.0)
+	Style.draw_symbol(self, "trophy", rect.position + Vector2(11, 9), 1.0)
+	draw_string(font, rect.position + Vector2(22, 13), note["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, Style.FONT_SIZE, Style.TEXT)
 
 
 func _draw_banner() -> void:

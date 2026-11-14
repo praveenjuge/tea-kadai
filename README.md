@@ -77,9 +77,14 @@ Press **Grow** (on the top bar, in the morning or at night) to spend your money 
 
 - **Helpers**: flask boys, office tea runners, bus stand carts and more. They earn on their own, all day, and half as much while the game is closed (up to 8 hours). Buy as many as you like; each costs a little more than the last.
 - **Staff**: a chai boy who serves ready orders, Cousin Ravi who makes the drinks people are waiting for, and a vadai master at the fryer. They step in when you leave their station alone for a few seconds.
-- **Boosts**: one-time buys that double a helper, every helper, your tips, or how often golden glasses appear.
+- **Upgrades**: each helper has five tiers, unlocked at 1, 10, 25, 50 and 100 owned, and each doubles that helper. Boosts double every helper, your tips, or how often golden glasses appear.
+- **Kadai**: things for the shop itself, like a second bench on the pavement or a bigger pot.
+- **Trophies**: 40 achievements, each adding 1% to helper income and tips.
+- **Stats**: all-time totals, from glasses poured to time at the counter.
 
 Now and then a **golden glass** floats over the street. Click it before it fades for a lump of money or a helper frenzy.
+
+Big lifetime numbers (one lakh, ten lakh, one crore, one arab, one kharab...) get a celebration and a story in the next morning's paper, and the kadai gets grander each time: bunting, a gold-framed sign, a rooftop billboard, spotlights, a red carpet, fireworks. Helpers you own show up on the street too: flask boys and tea runners on their rounds, a cart at the kerb, the film crew's van.
 
 Once a kadai has earned ₹1 lakh, you can **open a branch** in another part of Chennai from the night screen. You start fresh there, but keep your recipes and regulars, and every branch adds 25% to all earnings for good.
 

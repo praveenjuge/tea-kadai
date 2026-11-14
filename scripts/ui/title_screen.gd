@@ -38,6 +38,12 @@ func _ready() -> void:
 	shade.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(shade)
 
+	var level := _saved.big_numbers_seen if _saved != null else 0
+	var ticker := NewsTicker.new(Chennai.ticker(level))
+	ticker.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
+	ticker.offset_top = -14
+	add_child(ticker)
+
 	# Left-aligned and vertically centred, whatever the screen height.
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 6)

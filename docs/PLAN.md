@@ -230,6 +230,19 @@ Asked for: play for longer (more cookie clicker), more Chennai, and everything m
 - **Chennai:** a different kolam every day, festivals on the calendar, a film poster wall and Friday cutouts, an auto stand, radio songs and weekend cricket, Tanglish chatter and a glossary.
 - **Pixel art:** people and items painted pixel by pixel in code with shading and outlines.
 
+
+## Round 9: more like Cookie Clicker (2026-11-14)
+
+Playtest: money pace felt right, golden glasses were loved, everything new was liked. The shutter between every screen got tiresome.
+
+- Shutter only when opening and closing the kadai; a quick fade elsewhere.
+- Long wooden benches on the pavement instead of plastic chairs, like a real Chennai tea kadai.
+- Helper upgrade tiers at 1/10/25/50/100 owned, each doubling that helper (replacing the three per-helper boosts; old saves keep them as tier one).
+- 40 achievements, +1% each to helper income and tips, with a trophy note during the day and a Trophies tab.
+- Big Indian numbers (lakh to padma): a banner and cheer, a newspaper story, and a grander kadai each time.
+- A Stats tab; helpers visible on the street; a news ticker on the title screen and in the morning paper.
+- Clicking a big cookie-like object was considered and skipped: serving stays the clicking.
+
 ## Next up
 
 In order:

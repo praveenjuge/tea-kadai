@@ -109,6 +109,14 @@ func _ready() -> void:
 	_service.phase_started.connect(_on_phase_started)
 	_service.golden_appeared.connect(func(spot: Vector2) -> void: _golden.appear(spot, Catalog.GOLDEN_LIFE))
 	_service.golden_gone.connect(_golden.vanish)
+	_service.achieved.connect(func(entry: Dictionary) -> void:
+		_effects.trophy("Trophy: %s  (+1%%)" % entry["name"])
+		_sound.play("golden", 1.2))
+	_service.big_number.connect(func(milestone: Dictionary) -> void:
+		_effects.banner("You've earned %s!" % milestone["name"], Style.WARN)
+		_effects.confetti(Vector2(size.x / 2.0, 80), 60)
+		_shake = 4.0
+		_sound.play("cheer"))
 	_service.helpers_earned.connect(func(amount: int) -> void:
 		_effects.float_text(_hud.money_point() - global_position + Vector2(-10, 18), "+%s" % Style.short_rupees(amount), Style.GOOD))
 	_service.said.connect(func(_seat: int, _text: String) -> void: _sound.play("pop"))

@@ -184,6 +184,8 @@ func _draw() -> void:
 	ChennaiBits.draw_auto_stand(self, _scenery)
 	ChennaiBits.draw_cutout(self, day, _time)
 	_draw_stall()
+	ChennaiBits.draw_grandeur(self, _service.state.big_numbers_seen, _time)
+	ChennaiBits.draw_helper_spots(self, _service.state, _time)
 	ChennaiBits.draw_festival(self, day, _time)
 	_draw_tree(Vector2(-0.6, 3.6))
 	_draw_cow(Vector2(9.4, 3.9))
@@ -383,16 +385,37 @@ func _draw_stall() -> void:
 
 
 ## A steel table with two plastic chairs on the pavement beside the shop.
+## The long wooden benches on the pavement, like every Chennai tea kadai,
+## with a couple of glasses and the day's paper left on them. The bench
+## upgrade adds a second one.
 func _draw_seating() -> void:
-	var table := SEATING
-	for chair in [[Vector2(-0.7, 0.0), Color("d64a3a")], [Vector2(0.9, 0.1), Color("2f6db5")]]:
-		var at: Vector2 = table + chair[0]
-		var color: Color = chair[1]
-		_box(at, at + Vector2(0.35, 0.35), 6, color.lightened(0.15), color, color.darkened(0.25))
-		_box(at, at + Vector2(0.06, 0.35), 13, color, color.darkened(0.1), color.darkened(0.3))
-	_box(table, table + Vector2(0.6, 0.5), 11, Color("c9ced6"), Color("8a9098"), Color("6a7078"))
+	_draw_bench(SEATING + Vector2(-0.7, -0.15), SEATING + Vector2(1.7, 0.2))
 	for i in 2:
-		Style.draw_item(self, "tea", _iso(table + Vector2(0.15 + i * 0.3, 0.25), 15), 0.9)
+		Style.draw_item(self, "tea", _iso(SEATING + Vector2(-0.2 + i * 1.3, 0.05), 15), 0.9)
+	var paper := _iso(SEATING + Vector2(0.5, 0.05), 11)
+	draw_colored_polygon(PackedVector2Array([paper + Vector2(-5, 0), paper + Vector2(2, -3), paper + Vector2(6, -1), paper + Vector2(-1, 2)]), Color("ece4d2"))
+	draw_line(paper + Vector2(-3, 0), paper + Vector2(3, -2), Color("8a8478"), 1.0)
+	if _service.state.has_upgrade("bench"):
+		_draw_bench(SEATING + Vector2(-0.2, 1.75), SEATING + Vector2(2.0, 2.1))
+
+
+func _draw_bench(from: Vector2, to: Vector2) -> void:
+	const SEAT := 10.0
+	const THICK := 2.0
+	var wood := Color("9a6a3c")
+	var leg := Color("5a3a1e")
+	for x in [from.x + 0.1, to.x - 0.2]:
+		for y in [from.y + 0.02, to.y - 0.1]:
+			_box(Vector2(x, y), Vector2(x + 0.1, y + 0.08), SEAT - THICK, leg, leg.darkened(0.1), leg.darkened(0.3))
+	var top := PackedVector2Array([_iso(from, SEAT), _iso(Vector2(to.x, from.y), SEAT), _iso(to, SEAT), _iso(Vector2(from.x, to.y), SEAT)])
+	draw_colored_polygon(top, wood.lightened(0.1))
+	_quad_up(from, to, SEAT, SEAT - THICK, wood.darkened(0.2))
+	draw_colored_polygon(PackedVector2Array([_iso(Vector2(to.x, from.y), SEAT), _iso(to, SEAT), _iso(to, SEAT - THICK),
+		_iso(Vector2(to.x, from.y), SEAT - THICK)]), wood.darkened(0.35))
+	# Plank lines along the seat, and a dark outline.
+	draw_line(_iso(Vector2(from.x, (from.y + to.y) / 2.0), SEAT), _iso(Vector2(to.x, (from.y + to.y) / 2.0), SEAT), wood.darkened(0.15), 1.0)
+	top.append(top[0])
+	draw_polyline(top, wood.darkened(0.55), 1.0)
 
 
 func _draw_plants_and_lights(roof: Array) -> void:

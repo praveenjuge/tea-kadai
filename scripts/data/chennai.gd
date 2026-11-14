@@ -67,6 +67,19 @@ const FRIDAY_LINES: Array[String] = [
 ]
 const AUTO_LINES: Array[String] = ["Meter? Meter-ellam illa, sir.", "Central-ku? Hundred fifty.", "Saar, auto venuma?"]
 
+## Lines for the news ticker, sillier the bigger the kadai has grown. Each
+## list adds to the ones before, by big-number milestones passed.
+const TICKER: Array = [
+	["Corporation fixes one pothole; residents hold a small function", "Auto meter spotted working in Egmore, experts baffled",
+		"Filter coffee or tea? City split down the middle again", "Marina beach sundal prices steady, say vendors"],
+	["Local kadai's flask boys now seen in three neighbourhoods", "\"Best tea on the street,\" says man who has tried two",
+		"Office lifts slowed by tea runners, managers not complaining"],
+	["Kadai tea served at a film launch; hero asks for second glass", "College exams postponed? No. Tea consumption up 300%",
+		"Train passengers now plan journeys around the tea vendor"],
+	["Economists propose the tumbler as a unit of currency", "Kadai owner declines Bollywood biopic: \"busy pouring\"",
+		"Satellites detect steam rising over Chennai every morning", "Bay of Bengal 2% sweeter, scientists blame sugar spillage"],
+]
+
 ## Tamil and Tanglish words heard at the kadai.
 const GLOSSARY: Array[Array] = [
 	["Anna / Akka", "Elder brother / sister. How you call the person at the counter."],
@@ -88,6 +101,15 @@ const GLOSSARY: Array[Array] = [
 	["Pongal", "The harvest festival in January, with sweet pongal and sugarcane."],
 	["Karthigai Deepam", "The festival of lamps, lit on every doorstep."],
 ]
+
+
+## Ticker lines unlocked at this many big-number milestones.
+static func ticker(level: int) -> Array[String]:
+	var lines: Array[String] = []
+	for i in mini(level + 1, TICKER.size()):
+		for line in TICKER[i]:
+			lines.append(line)
+	return lines
 
 
 static func festival(day: int) -> Dictionary:

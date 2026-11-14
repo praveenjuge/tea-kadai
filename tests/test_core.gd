@@ -398,16 +398,20 @@ func _test_clicker() -> void:
 	staffed.ready["tea"].append(0.9)
 	staffed._update_staff(0.1)
 	_check(staffed.seats[0] == null, "the chai boy serves a ready order")
-	# Boosts double what they boost.
+	# Helper tiers unlock at 1 and 10 owned, and each doubles that helper.
 	var before := state.helper_income("flask_boy")
-	_check(state.buy_boost("steel_flasks"), "the steel flasks boost can be bought")
-	_check(is_equal_approx(state.helper_income("flask_boy"), before * 2.0), "a boost doubles its helper")
+	_check(state.next_tier("flask_boy") == 0 and state.buy_tier("flask_boy"), "the first flask boy tier can be bought")
+	_check(state.next_tier("flask_boy") == 1 and state.buy_tier("flask_boy"), "ten flask boys unlock the second tier")
+	_check(state.next_tier("flask_boy") == -1, "the third tier needs 25 flask boys")
+	_check(is_equal_approx(state.helper_income("flask_boy"), before * 4.0), "each tier doubles its helper")
 	# Away earnings are half the rate, capped.
 	_check(state.away_earnings(3600.0) == floori(state.income_per_second() * 3600.0 * Catalog.AWAY_RATE), "away earnings are half rate")
 	_check(state.away_earnings(1e9) == state.away_earnings(Catalog.AWAY_MAX_HOURS * 3600.0), "away earnings are capped")
 	# Everything survives a save.
 	var copy := KadaiState.from_dict(JSON.parse_string(JSON.stringify(state.to_dict())))
-	_check(copy.helper_count("flask_boy") == 10 and copy.has_staff("chai_boy") and copy.has_boost("steel_flasks"), "helpers, staff and boosts survive a save")
+	_check(copy.helper_count("flask_boy") == 10 and copy.has_staff("chai_boy") and copy.tier("flask_boy") == 2, "helpers, staff and tiers survive a save")
+	var old := KadaiState.from_dict({"helpers": {"flask_boy": 5}, "boosts": ["steel_flasks", "lucky_tumbler"]})
+	_check(old.tier("flask_boy") == 1 and old.has_boost("lucky_tumbler"), "an old helper boost becomes that helper's first tier")
 	# A new branch starts fresh with a permanent bonus.
 	_check(not state.can_open_branch(), "a branch needs enough earned first")
 	state.branch_earned = Catalog.BRANCH_NEEDS
@@ -417,6 +421,18 @@ func _test_clicker() -> void:
 	_check(state.money == KadaiState.new().money, "a new branch starts with starting money")
 	_check(is_equal_approx(state.branch_multiplier(), 1.0 + Catalog.BRANCH_BONUS), "a branch gives a lasting bonus")
 	_check(KadaiState.from_dict(JSON.parse_string(JSON.stringify(state.to_dict()))).branches == 1, "branches survive a save")
+	_check(state.tiers.is_empty(), "a new branch resets helper tiers")
+	# Achievements and big numbers.
+	var fresh := KadaiState.new()
+	fresh.earned_total = 150000
+	var earned := fresh.check_achievements()
+	_check(earned.size() == 3 and fresh.achievements.has("earn_lakh"), "earning one lakh gives the first three money achievements")
+	_check(fresh.check_achievements().is_empty(), "an achievement is only earned once")
+	_check(is_equal_approx(fresh.achievement_multiplier(), 1.03), "each achievement adds 1%")
+	var passed := fresh.check_big_numbers()
+	_check(passed.size() == 1 and fresh.news.size() == 1 and fresh.check_big_numbers().is_empty(), "one lakh is a big-number milestone, once")
+	var saved := KadaiState.from_dict(JSON.parse_string(JSON.stringify(fresh.to_dict())))
+	_check(saved.achievements.size() == 3 and saved.big_numbers_seen == 1, "achievements survive a save")
 
 
 func _test_chennai() -> void:

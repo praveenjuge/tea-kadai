@@ -124,7 +124,12 @@ func _build_paper() -> Control:
 	photo.draw.connect(_draw_photo.bind(photo))
 	row.add_child(photo)
 	box.add_child(Style.label("THE MORNING KADAI TIMES", Style.LINE))
+	# A milestone from yesterday makes the front page.
+	for story in _state.news:
+		box.add_child(Style.paragraph(story, 210.0, Style.BAD.darkened(0.3)))
 	box.add_child(Style.paragraph(Catalog.headline(_state.day), 210.0, Style.INK))
+	var ticker := Chennai.ticker(_state.big_numbers_seen)
+	box.add_child(Style.paragraph("Also: " + ticker[_state.day % ticker.size()], 210.0, Style.LINE.darkened(0.2)))
 	var rain := Catalog.rain_for_day(_state.day)
 	var forecast := "Weather: clear skies, hot by noon."
 	if rain != Vector2.ZERO:

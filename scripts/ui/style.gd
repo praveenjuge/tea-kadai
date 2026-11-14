@@ -246,10 +246,17 @@ static func rupees(amount: int) -> String:
 	return ("-₹" if amount < 0 else "₹") + _grouped(absi(amount))
 
 
-## Rupees kept short for big amounts: ₹45,000, ₹2.5 lakh, ₹1.2 crore.
+## Indian big-number names, largest first, for short_rupees.
+const BIG_UNITS := [[1e15, "padma"], [1e13, "neel"], [1e11, "kharab"], [1e9, "arab"]]
+
+
+## Rupees kept short for big amounts: ₹45,000, ₹2.5 lakh, ₹1.2 crore, ₹3 arab.
 static func short_rupees(amount: float) -> String:
 	var whole := absf(amount)
 	var sign := "-" if amount < 0 else ""
+	for unit in BIG_UNITS:
+		if whole >= unit[0]:
+			return "%s₹%s %s" % [sign, _trim(whole / unit[0]), unit[1]]
 	if whole >= 10000000.0:
 		return "%s₹%s crore" % [sign, _trim(whole / 10000000.0)]
 	if whole >= 100000.0:
@@ -322,6 +329,16 @@ static func draw_symbol(canvas: CanvasItem, symbol: String, at: Vector2, scale: 
 				var a := -PI / 2.0 + i * PI / 5.0
 				points.append(Vector2(cos(a), sin(a)) * r)
 			canvas.draw_colored_polygon(points, ACCENT if symbol == "star" else LINE)
+		"trophy", "trophy_empty":
+			var cup := Color("e8c547") if symbol == "trophy" else Color("6a5a48")
+			canvas.draw_rect(Rect2(-4, -5, 8, 5), cup)
+			canvas.draw_rect(Rect2(-3, 0, 6, 1), cup.darkened(0.15))
+			canvas.draw_rect(Rect2(-1, 1, 2, 2), cup.darkened(0.2))
+			canvas.draw_rect(Rect2(-3, 3, 6, 2), cup.darkened(0.3))
+			canvas.draw_rect(Rect2(-6, -4, 2, 3), cup.darkened(0.1))
+			canvas.draw_rect(Rect2(4, -4, 2, 3), cup.darkened(0.1))
+			if symbol == "trophy":
+				canvas.draw_rect(Rect2(-3, -4, 1, 3), Color(1, 1, 1, 0.6))
 		"cloud":
 			for c in [Vector2(-3, 0), Vector2(1, -2), Vector2(4, 0)]:
 				canvas.draw_circle(c, 3.0, Color("9aa3ad"))

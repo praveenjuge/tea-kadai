@@ -5,6 +5,7 @@ extends Control
 
 const SHUTTER_DOWN := 0.35
 const SHUTTER_UP := 0.45
+const FADE_SECONDS := 0.25
 
 var state: KadaiState
 var settings := Settings.load_saved()
@@ -14,6 +15,7 @@ var _screen: Control
 var _stage := Control.new()
 var _overlays := CanvasLayer.new()
 var _shutter := Shutter.new()
+var _fade := ColorRect.new()
 
 
 func _ready() -> void:
@@ -33,6 +35,10 @@ func _ready() -> void:
 	add_child(shutter_layer)
 	_shutter.theme = theme
 	_shutter.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_fade.color = Color(Style.BG, 0.0)
+	_fade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_fade.mouse_filter = MOUSE_FILTER_IGNORE
+	shutter_layer.add_child(_fade)
 	shutter_layer.add_child(_shutter)
 
 	if "--service" in OS.get_cmdline_user_args():
@@ -117,13 +123,25 @@ func _fit_window() -> void:
 	DisplayServer.window_set_position(usable.position + (usable.size - window_size) / 2)
 
 
-## Whether the shutter is (partly) down, between screens.
+## Whether the shutter or the fade is (partly) covering, between screens.
 func covered() -> bool:
-	return _shutter.amount > 0.02
+	return _shutter.amount > 0.02 or _fade.color.a > 0.05
 
 
-## Pulls the shutter down, swaps to the next screen, and rolls it back up.
-func _swap(next: Control) -> void:
+## Swaps to the next screen. Opening and closing the kadai pull the shutter
+## down and roll it back up; everything else is a quick fade.
+func _swap(next: Control, shutter: bool = false) -> void:
+	if not shutter:
+		if _screen != null:
+			var out := create_tween()
+			out.tween_property(_fade, "color:a", 1.0, FADE_SECONDS)
+			await out.finished
+			_screen.queue_free()
+		_screen = next
+		_stage.add_child(next)
+		next.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		create_tween().tween_property(_fade, "color:a", 0.0, FADE_SECONDS)
+		return
 	if _screen != null:
 		sound.play("shutter")
 		var down := create_tween()
@@ -199,7 +217,7 @@ func _show_service() -> void:
 	var screen := ServiceScreen.new(state, sound)
 	screen.day_finished.connect(_show_night)
 	screen.menu_requested.connect(_on_service_menu)
-	_swap(screen)
+	_swap(screen, true)
 	sound.set_scene("service")
 
 
@@ -221,7 +239,7 @@ func _show_night() -> void:
 	screen.next_requested.connect(_on_next_day)
 	screen.shop_requested.connect(_open_shop.bind(screen))
 	screen.branch_requested.connect(_ask_branch)
-	_swap(screen)
+	_swap(screen, true)
 	sound.set_scene("night")
 	if state.is_week_end():
 		# Once the day's tally has counted up, celebrate the week.

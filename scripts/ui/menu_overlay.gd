@@ -35,7 +35,8 @@ func add(node: Control) -> Control:
 	return node
 
 
-func add_buttons(buttons: Array[Button]) -> void:
+## Adds a row of buttons at the bottom, and returns the row.
+func add_buttons(buttons: Array[Button]) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END
 	row.add_theme_constant_override("separation", 6)
@@ -43,6 +44,7 @@ func add_buttons(buttons: Array[Button]) -> void:
 		row.add_child(button)
 	_box.add_child(HSeparator.new())
 	_box.add_child(row)
+	return row
 
 
 func close() -> void:

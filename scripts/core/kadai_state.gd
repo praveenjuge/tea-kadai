@@ -31,6 +31,16 @@ var earned_total := 0
 var branch_earned := 0
 ## How many new branches you've opened; 0 is the first kadai.
 var branches := 0
+## Helper id -> upgrade tiers bought (each doubles that helper).
+var tiers := {}
+## All-time counts that never reset: served, perfect, poured, fried, golden,
+## frenzies, days, seconds.
+var stats := {}
+## Achievement ids earned, and how many big-number milestones have been seen.
+var achievements: Array[String] = []
+var big_numbers_seen := 0
+## Lines for the next morning's paper, like a milestone story.
+var news: Array[String] = []
 
 
 func _init() -> void:
@@ -71,6 +81,8 @@ func to_dict() -> Dictionary:
 		"reputation": reputation, "week": week,
 		"helpers": helpers, "staff": staff, "boosts": boosts,
 		"earned_total": earned_total, "branch_earned": branch_earned, "branches": branches,
+		"tiers": tiers, "stats": stats, "achievements": achievements, "big_numbers_seen": big_numbers_seen,
+		"news": news,
 	}
 
 
@@ -111,9 +123,25 @@ static func from_dict(data: Dictionary) -> KadaiState:
 	for id in data.get("staff", []):
 		if Catalog.STAFF.has(id) and not state.staff.has(id):
 			state.staff.append(id)
+	var saved_tiers: Dictionary = data.get("tiers", {})
+	for id in saved_tiers:
+		if Catalog.HELPERS.has(id):
+			state.tiers[id] = clampi(int(saved_tiers[id]), 0, Milestones.TIER_COUNTS.size())
 	for id in data.get("boosts", []):
 		if Catalog.BOOSTS.has(id) and not state.boosts.has(id):
 			state.boosts.append(id)
+		elif Catalog.OLD_HELPER_BOOSTS.has(id):
+			var helper: String = Catalog.OLD_HELPER_BOOSTS[id]
+			state.tiers[helper] = maxi(1, int(state.tiers.get(helper, 0)))
+	var saved_stats: Dictionary = data.get("stats", {})
+	for key in saved_stats:
+		state.stats[str(key)] = maxi(0, int(saved_stats[key]))
+	for id in data.get("achievements", []):
+		if not Milestones.achievement(str(id)).is_empty() and not state.achievements.has(str(id)):
+			state.achievements.append(str(id))
+	state.big_numbers_seen = maxi(0, int(data.get("big_numbers_seen", 0)))
+	for line in data.get("news", []):
+		state.news.append(str(line))
 	state.earned_total = maxi(0, int(data.get("earned_total", 0)))
 	state.branch_earned = maxi(0, int(data.get("branch_earned", 0)))
 	state.branches = maxi(0, int(data.get("branches", 0)))
@@ -172,6 +200,7 @@ func week_goals() -> Array[Dictionary]:
 ## day's stars and best streak in the week's record.
 func close_day() -> void:
 	claim_goals()
+	count("days")
 	week["stars"].append(stars_today())
 	week["best_streak"] = maxi(int(week.get("best_streak", 0)), int(today["best_streak"]))
 
@@ -360,14 +389,14 @@ func buy_helper(id: String) -> bool:
 	return true
 
 
-## Rupees per second one helper of this type earns, with boosts and branches.
+## Rupees per second one helper of this type earns, with its tiers, boosts,
+## branches and achievements.
 func helper_income(id: String) -> float:
-	var income := float(Catalog.HELPERS[id]["income"])
+	var income := float(Catalog.HELPERS[id]["income"]) * pow(2.0, tier(id))
 	for boost in boosts:
-		var info: Dictionary = Catalog.BOOSTS[boost]
-		if info.get("helper", "") == id or info.get("all", false):
+		if Catalog.BOOSTS[boost].get("all", false):
 			income *= 2.0
-	return income * branch_multiplier()
+	return income * branch_multiplier() * achievement_multiplier()
 
 
 ## Rupees per second all helpers earn together.
@@ -405,17 +434,37 @@ func has_boost(id: String) -> bool:
 	return boosts.has(id)
 
 
-## Whether a boost is on offer yet (you have enough of what it boosts).
+## Whether a boost is on offer yet.
 func boost_unlocked(id: String) -> bool:
-	var info: Dictionary = Catalog.BOOSTS[id]
-	if info.has("helper") and helper_count(info["helper"]) < int(info.get("needs", 0)):
+	return total_helpers() >= int(Catalog.BOOSTS[id].get("needs_total", 0))
+
+
+func total_helpers() -> int:
+	var total := 0
+	for helper in helpers:
+		total += helper_count(helper)
+	return total
+
+
+## Upgrade tiers bought for this helper.
+func tier(id: String) -> int:
+	return int(tiers.get(id, 0))
+
+
+## The helper's next tier if you own enough of them for it, or -1.
+func next_tier(id: String) -> int:
+	var next := tier(id)
+	if next >= Milestones.TIER_COUNTS.size() or helper_count(id) < Milestones.TIER_COUNTS[next]:
+		return -1
+	return next
+
+
+func buy_tier(id: String) -> bool:
+	var next := next_tier(id)
+	if next < 0 or money < Milestones.tier_cost(id, next):
 		return false
-	if info.has("needs_total"):
-		var total := 0
-		for helper in helpers:
-			total += helper_count(helper)
-		if total < int(info["needs_total"]):
-			return false
+	money -= Milestones.tier_cost(id, next)
+	tiers[id] = next + 1
 	return true
 
 
@@ -430,7 +479,7 @@ func buy_boost(id: String) -> bool:
 
 ## Tips multiplier from boosts and branches.
 func tip_multiplier() -> float:
-	var times := branch_multiplier()
+	var times := branch_multiplier() * achievement_multiplier()
 	for boost in boosts:
 		if Catalog.BOOSTS[boost].get("tips", false):
 			times *= 2.0
@@ -467,11 +516,64 @@ func open_branch() -> bool:
 	reputation = 0
 	upgrades.clear()
 	helpers.clear()
+	tiers.clear()
 	staff.clear()
 	boosts.clear()
 	branch_earned = 0
 	branches += 1
 	return true
+
+
+# --- Stats, achievements and milestones -----------------------------------
+
+## Adds to an all-time count.
+func count(key: String, amount: int = 1) -> void:
+	stats[key] = int(stats.get(key, 0)) + amount
+
+
+## An all-time number by name, for achievements and the stats page.
+func stat(key: String) -> int:
+	if key.begins_with("helper:"):
+		return helper_count(key.trim_prefix("helper:"))
+	match key:
+		"earned":
+			return earned_total
+		"helpers":
+			return total_helpers()
+		"branches":
+			return branches
+		"best_streak":
+			return best_streak
+		"staff":
+			return staff.size()
+		"boosts":
+			return boosts.size()
+	return int(stats.get(key, 0))
+
+
+func achievement_multiplier() -> float:
+	return 1.0 + Milestones.ACHIEVEMENT_BONUS * achievements.size()
+
+
+## Marks any achievements just reached, and returns them.
+func check_achievements() -> Array[Dictionary]:
+	var earned: Array[Dictionary] = []
+	for entry in Milestones.ACHIEVEMENTS:
+		if not achievements.has(entry["id"]) and stat(entry["stat"]) >= int(entry["at"]):
+			achievements.append(entry["id"])
+			earned.append(entry)
+	return earned
+
+
+## Big-number milestones just passed; each also goes in tomorrow's paper.
+func check_big_numbers() -> Array[Dictionary]:
+	var passed: Array[Dictionary] = []
+	while big_numbers_seen < Milestones.big_numbers_passed(earned_total):
+		var milestone: Dictionary = Milestones.BIG_NUMBERS[big_numbers_seen]
+		passed.append(milestone)
+		news.append(milestone["line"])
+		big_numbers_seen += 1
+	return passed
 
 
 ## Pays out what helpers earned while you were away, and returns it.

@@ -220,22 +220,18 @@ const STAFF_ORDER: Array[String] = ["chai_boy", "cousin", "vadai_master"]
 const STAFF_PACE := 1.2
 const STAFF_IDLE := 3.0
 
-## Boosts: one-time multipliers. "helper" doubles one helper type, "all" every
-## helper, "tips" counter tips, "golden" how often golden glasses appear.
-## "needs" is how many of a helper you must own first.
+## Boosts: one-time multipliers. "all" doubles every helper, "tips" counter
+## tips, "golden" how often golden glasses appear. Each helper's own upgrades
+## are tiers, in Milestones.
 const BOOSTS := {
-	"steel_flasks": {"name": "Steel flasks", "about": "Flask boys earn twice as much.", "cost": 2000,
-		"helper": "flask_boy", "needs": 5},
-	"lift_pass": {"name": "Office lift pass", "about": "Office runners earn twice as much.", "cost": 15000,
-		"helper": "office_runner", "needs": 5},
-	"bus_permit": {"name": "Bus stand permit", "about": "Bus stand carts earn twice as much.", "cost": 90000,
-		"helper": "bus_cart", "needs": 5},
 	"lucky_tumbler": {"name": "Lucky tumbler", "about": "Tips at the counter are doubled.", "cost": 5000, "tips": true},
 	"sharp_eyes": {"name": "Sharp eyes", "about": "Golden glasses turn up twice as often.", "cost": 8000, "golden": true},
 	"strong_decoction": {"name": "Strong decoction", "about": "Every helper earns twice as much.", "cost": 60000,
 		"all": true, "needs_total": 25},
 }
-const BOOST_ORDER: Array[String] = ["steel_flasks", "lucky_tumbler", "sharp_eyes", "lift_pass", "strong_decoction", "bus_permit"]
+const BOOST_ORDER: Array[String] = ["lucky_tumbler", "sharp_eyes", "strong_decoction"]
+## Boosts from older saves that are helper tiers now: boost -> helper.
+const OLD_HELPER_BOOSTS := {"steel_flasks": "flask_boy", "lift_pass": "office_runner", "bus_permit": "bus_cart"}
 
 ## The golden glass: now and then one appears on the street. Click it in time
 ## for a bonus, or a frenzy where helpers earn far more for a while.
@@ -260,7 +256,7 @@ const BRANCHES: Array[String] = ["Triplicane", "Mylapore", "T. Nagar", "Adyar", 
 ## Things to save up for, bought on the night screen. "level" is the kadai
 ## level needed before it's for sale.
 const UPGRADES := {
-	"bench": {"name": "Bench", "cost": 350, "level": 1, "about": "Room for one more customer."},
+	"bench": {"name": "Second bench", "cost": 350, "level": 1, "about": "Another bench on the pavement: room for one more customer."},
 	"pot": {"name": "Bigger milk pot", "cost": 450, "level": 1, "about": "Glasses fill twice as fast."},
 	"paint": {"name": "Fresh paint & sign", "cost": 400, "level": 2, "about": "A smart kadai earns bigger tips."},
 	"plants": {"name": "Plants & string lights", "cost": 500, "level": 3, "about": "Customers wait more happily."},
