@@ -30,7 +30,7 @@ const ROAD_EDGE_Y := 6.6
 const WALK_SECONDS := 0.7
 const LEAVE_SECONDS := 1.6
 ## Customers are drawn a little larger than passers-by so their faces read.
-const CUSTOMER_SCALE := 1.25
+const CUSTOMER_SCALE := 1.0
 
 const WOOD := Color("9a6a3c")
 const STALL_PAINT := Color("2f7fb5")
@@ -474,52 +474,26 @@ func draw_person(type_id: String, tile: Vector2, walking: bool, alpha: float, po
 	draw_figure(Service.kind_of(type_id), _iso(tile).round() - Vector2(0, lift), walking, alpha, CUSTOMER_SCALE, pose)
 
 
-## A little person standing on "feet". "look" needs shirt, legs and hair
-## colours; a "bag" colour adds a backpack.
+## A little person standing on "feet", painted by PixelArt from their look,
+## with a shadow from the sun and a storm cloud when they're grumpy.
 func draw_figure(look: Dictionary, feet: Vector2, walking: bool, alpha: float, scale: float = 1.0, pose: String = "") -> void:
 	draw_set_transform(feet, 0.0, Vector2(scale, scale))
-	# Two-frame walk: legs swap and the body bobs on the second frame.
-	var step := (int(_time * 8.0) % 2) if walking else 0
-	var bob := float(step) + (1.5 if pose == "slump" else 0.0)
-	var shirt: Color = look["shirt"]
-	var legs: Color = look["legs"]
-	var skin: Color = look.get("skin", Style.SKIN)
 	var sun := _scenery.shadow_offset(12.0) / scale if _scenery.sun_up() else Vector2.ZERO
-	draw_colored_polygon(PackedVector2Array([Vector2(-4, -1), Vector2(4, -1), Vector2(4, 1) + sun, Vector2(-4, 1) + sun]),
+	draw_colored_polygon(PackedVector2Array([Vector2(-5, -1), Vector2(5, -1), Vector2(5, 1) + sun, Vector2(-5, 1) + sun]),
 		Color(0.15, 0.08, 0.02, 0.25 * alpha))
-	if look.has("saree"):
-		var saree: Color = look["saree"]
-		draw_colored_polygon(PackedVector2Array([Vector2(-4, -12 - bob), Vector2(4, -12 - bob),
-			Vector2(5, 0), Vector2(-5, 0)]), Color(legs, alpha))
-		draw_rect(Rect2(-5, -2, 10, 1), Color(saree, alpha))
-	else:
-		draw_rect(Rect2(-3, -11 - bob, 2, 11 - (2 if step == 1 else 0) + bob), Color(legs, alpha))
-		draw_rect(Rect2(1, -11 - bob, 2, 11 - (2 if walking and step == 0 else 0) + bob), Color(legs, alpha))
-	draw_rect(Rect2(-4, -22 - bob, 8, 12), Color(shirt, alpha))
-	draw_rect(Rect2(-5, -21 - bob, 1, 8), Color(skin, alpha))
-	if pose == "wave":
-		var swing := sin(_time * 14.0) * 1.5
-		draw_rect(Rect2(4, -30 - bob, 1, 9), Color(skin, alpha))
-		draw_rect(Rect2(4 + swing, -32 - bob, 2, 2), Color(skin, alpha))
-	else:
-		draw_rect(Rect2(4, -21 - bob, 1, 8), Color(skin, alpha))
-	if look.has("saree"):
-		draw_colored_polygon(PackedVector2Array([Vector2(1, -22 - bob), Vector2(4, -22 - bob),
-			Vector2(-4, -12 - bob), Vector2(-4, -15 - bob)]), Color(look["saree"], alpha))
-	if look.get("tag", false):
-		draw_line(Vector2(-2, -22 - bob), Vector2(0, -17 - bob), Color(0.2, 0.3, 0.6, alpha), 1.0)
-		draw_rect(Rect2(-1, -17 - bob, 3, 3), Color(1, 1, 1, alpha))
-	if look.has("bag"):
-		draw_line(Vector2(-3, -22 - bob), Vector2(3, -13 - bob), Color(look["bag"].darkened(0.3), alpha), 1.0)
-		draw_rect(Rect2(4, -20 - bob, 3, 7), Color(look["bag"], alpha))
-	draw_set_transform(feet + Vector2(0, (-22 - bob) * scale), 0.0, Vector2(scale, scale))
-	Style.draw_head(self, look, alpha)
+	var frame := "stand"
 	if pose == "slump":
-		# A little storm cloud over a grumpy head.
+		frame = "slump"
+	elif pose == "wave":
+		frame = "wave_a" if int(_time * 6.0) % 2 == 0 else "wave_b"
+	elif walking and int(_time * 8.0) % 2 == 1:
+		frame = "step"
+	draw_texture(PixelArt.person_texture(look, frame), -Vector2(PixelArt.FEET), Color(1, 1, 1, alpha))
+	if pose == "slump":
 		var drift := sin(_time * 3.0)
-		draw_circle(Vector2(-2 + drift, -15), 2.5, Color(0.35, 0.35, 0.4, alpha))
-		draw_circle(Vector2(1 + drift, -16), 3.0, Color(0.35, 0.35, 0.4, alpha))
-		draw_line(Vector2(0 + drift, -13), Vector2(-1 + drift, -10), Color("ffca3a", alpha), 1.0)
+		draw_circle(Vector2(-2 + drift, -44), 2.5, Color(0.35, 0.35, 0.4, alpha))
+		draw_circle(Vector2(1 + drift, -45), 3.0, Color(0.35, 0.35, 0.4, alpha))
+		draw_line(Vector2(0 + drift, -42), Vector2(-1 + drift, -39), Color("ffca3a", alpha), 1.0)
 	draw_set_transform(Vector2.ZERO)
 
 

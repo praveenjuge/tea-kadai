@@ -59,7 +59,7 @@ func draw_passers_by() -> void:
 				_draw_umbrella(walker, feet, 1.0)
 			"kids":
 				for offset in [Vector2(-5, 0), Vector2(5, 2)]:
-					_view.draw_figure(walker["look"], feet + offset, true, 1.0, 0.72)
+					_view.draw_figure(walker["look"], feet + offset, true, 1.0, 0.75)
 				_draw_umbrella(walker, feet, 0.8)
 			"cyclist":
 				_draw_cyclist(walker, feet)
@@ -129,7 +129,7 @@ func _draw_umbrella(walker: Dictionary, feet: Vector2, scale: float) -> void:
 	var color: Color = walker["umbrella"]
 	if color.a == 0.0:
 		return
-	var top := feet + Vector2(0, -34 * scale)
+	var top := feet + Vector2(0, -44 * scale)
 	_view.draw_line(top, top + Vector2(0, 10 * scale), Color("3a3a3a"), 1.0)
 	var points := PackedVector2Array()
 	for i in 9:
@@ -144,7 +144,7 @@ func _draw_cyclist(walker: Dictionary, feet: Vector2) -> void:
 		_view.draw_arc(feet + Vector2(wheel * facing, -4), 4.0, 0.0, TAU, 10, Color("2b2b2b"), 1.0)
 	_view.draw_line(feet + Vector2(-6 * facing, -4), feet + Vector2(0, -9), Color("c0392b"), 1.0)
 	_view.draw_line(feet + Vector2(6 * facing, -4), feet + Vector2(0, -9), Color("c0392b"), 1.0)
-	_view.draw_figure(walker["look"], feet + Vector2(-1 * facing, -6), false, 1.0, 0.8)
+	_view.draw_figure(walker["look"], feet + Vector2(-1 * facing, -6), false, 1.0, 0.7)
 	_draw_umbrella(walker, feet + Vector2(0, -5), 0.8)
 
 

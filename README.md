@@ -76,6 +76,10 @@ Now and then a **golden glass** floats over the street. Click it before it fades
 
 Once a kadai has earned ₹1 lakh, you can **open a branch** in another part of Chennai from the night screen. You start fresh there, but keep your recipes and regulars, and every branch adds 25% to all earnings for good.
 
+### Chennai
+
+Every morning has a new kolam, bigger on Sundays, festivals and through Margazhi. Fridays bring a new film, with a giant cutout by the kadai. The radio plays songs on weekdays and cricket on weekends, and a six cheers everyone up. Festivals like Karthigai Deepam and Pongal change the street. Customers talk in Tanglish; **Tamil words** in the pause menu explains them.
+
 ### Upgrades
 
 Bench, bigger milk pot, fresh paint and sign, plants and string lights, table fan, radio and posters, bigger counter, lit signboard. Most unlock at a kadai level, and each one shows on the stall.
@@ -95,6 +99,14 @@ The game is mouse first. Keys are optional shortcuts.
 | Answer a customer's question | Click an answer | |
 | Pause menu | Menu | P or Esc |
 | Sound on/off | | M |
+
+## Art
+
+People and menu items are pixel sprites painted in code by `scripts/ui/pixel_art.gd`, with shading and outlines. To see them all on one sheet (`docs/sprites.png`):
+
+```bash
+godot --headless --path . -s tools/make_sprites.gd
+```
 
 ## Sound
 
@@ -125,11 +137,13 @@ godot --path . -s tests/test_week.gd
 ```
 scripts/data/catalog.gd     All tunable numbers: menu, market, customers, day phases, upgrades, weather
 scripts/data/story.gd       The regulars and their week of story
+scripts/data/chennai.gd     Festivals, films, kolams, radio, cricket and Tamil words
 scripts/core/               Game rules, no drawing: state, saving, settings, clock, tea, fryer, service, regulars
 scripts/ui/                 Screens, placeholder art drawn in code, and the sound board
 assets/sounds/              Sound effects, ambience and music (placeholders for now)
 assets/fonts/               Pixelify Sans (SIL Open Font License)
 tools/make_sounds.gd        Synthesizes the placeholder sounds
+tools/make_sprites.gd       Exports every sprite to docs/sprites.png
 tests/                      Headless rule checks and an input-driven play test
 docs/PLAN.md                The game plan
 .github/workflows/          Builds and releases on every push to main

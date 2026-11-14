@@ -292,7 +292,7 @@ func _draw_scooter(tile: Vector2, vehicle: Dictionary) -> void:
 	_view.draw_rect(Rect2(feet + Vector2(4 * facing - 1, -12), Vector2(2, 6)), body.darkened(0.3))
 	var rider := {"shirt": body.darkened(0.2), "legs": Color("2d3a5a"), "hair": Color("1e1612"),
 		"skin": Color("8d5a3b"), "hat": Color("eef0f2")}
-	_view.draw_figure(rider, feet + Vector2(-1 * facing, -6), false, 1.0, 0.75)
+	_view.draw_figure(rider, feet + Vector2(-1 * facing, -6), false, 1.0, 0.65)
 
 
 static func _ellipse(center: Vector2, rx: float, ry: float) -> PackedVector2Array:

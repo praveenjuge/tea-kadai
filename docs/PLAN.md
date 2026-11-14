@@ -220,6 +220,16 @@ Asked for: no black bars in fullscreen, and graphics and UI that look like a rea
 - No Godot boot splash.
 - GitHub Actions builds macOS, Windows and Linux on every push to main and publishes the next patch release. A newer push cancels an older run, and only the last 10 releases are kept.
 
+
+## Round 8: longer play, Chennai and polish (2026-11-14)
+
+Asked for: play for longer (more cookie clicker), more Chennai, and everything more detailed and pleasant.
+
+- **Clicker growth:** helpers (flask boys up to film set catering) who earn on their own and cost 15% more each; staff who take over a station you leave alone (chai boy, Cousin Ravi, vadai master); boosts that double things; golden glasses for a bonus or a 7x frenzy; half-rate earnings while away, up to 8 hours; branches across Chennai as the prestige reset (+25% each, for good). All under **Grow**, which also holds the kadai upgrades now.
+- **Feel:** the night screen is the kadai under the moon, shutter half down, you counting coins, the tally on a chalkboard and the story in a notebook. A rolling shutter between screens. Oil splashes, confetti, floating "+₹", screen shake. New sounds: glass clink, shutter, temple bell at dawn, crowd murmur in the rushes, bubble pops, oil splash, a cheer and a radio jingle.
+- **Chennai:** a different kolam every day, festivals on the calendar, a film poster wall and Friday cutouts, an auto stand, radio songs and weekend cricket, Tanglish chatter and a glossary.
+- **Pixel art:** people and items painted pixel by pixel in code with shading and outlines.
+
 ## Next up
 
 In order:

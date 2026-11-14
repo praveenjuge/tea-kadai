@@ -293,46 +293,7 @@ static func drink_color(kind: String) -> Color:
 
 ## Draws a small icon for a menu item centred on "at".
 static func draw_item(canvas: CanvasItem, item: String, at: Vector2, quality: float = 1.0) -> void:
-	match item:
-		"lemon_tea":
-			var glass := PackedVector2Array([at + Vector2(-3, -5), at + Vector2(3, -5), at + Vector2(2, 5), at + Vector2(-2, 5)])
-			canvas.draw_colored_polygon(glass, GLASS)
-			canvas.draw_rect(Rect2(at + Vector2(-2.5, -3), Vector2(5, 8)), drink_color(item))
-			canvas.draw_circle(at + Vector2(3, -5), 2.0, Color("e8d23c"))
-		"filter_coffee":
-			canvas.draw_rect(Rect2(at + Vector2(-4, 2), Vector2(8, 3)), Color("aab2bb"))
-			canvas.draw_rect(Rect2(at + Vector2(-2.5, -5), Vector2(5, 8)), Color("c9ced6"))
-			canvas.draw_rect(Rect2(at + Vector2(-2, -5), Vector2(4, 2)), Color("d9b48a"))
-		"bajji":
-			var bajji := VADAI_GOLDEN if quality >= 0.7 else VADAI_RAW.darkened(0.15)
-			canvas.draw_rect(Rect2(at + Vector2(-5, -2), Vector2(10, 5)), bajji)
-			canvas.draw_rect(Rect2(at + Vector2(-4, -3), Vector2(8, 1)), bajji.lightened(0.15))
-			canvas.draw_rect(Rect2(at + Vector2(4, -1), Vector2(2, 2)), Color("3a8a3a"))
-		"samosa":
-			canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -5), at + Vector2(5, 4), at + Vector2(-5, 4)]), Color("d9a050"))
-			canvas.draw_line(at + Vector2(0, -5), at + Vector2(0, 4), Color("b8803a"), 1.0)
-		"tea", "ginger_tea":
-			var glass := PackedVector2Array([at + Vector2(-3, -5), at + Vector2(3, -5), at + Vector2(2, 5), at + Vector2(-2, 5)])
-			canvas.draw_colored_polygon(glass, GLASS)
-			canvas.draw_rect(Rect2(at + Vector2(-2.5, -2), Vector2(5, 7)), TEA)
-			var froth := FROTH if quality >= 0.7 else TEA.lightened(0.15)
-			canvas.draw_rect(Rect2(at + Vector2(-3, -4), Vector2(6, 2)), froth)
-			if item == "ginger_tea":
-				canvas.draw_rect(Rect2(at + Vector2(2, -7), Vector2(3, 3)), Color("d9c25a"))
-				canvas.draw_rect(Rect2(at + Vector2(3, -8), Vector2(1, 1)), Color("7cc46a"))
-		"vadai":
-			var color := VADAI_GOLDEN if quality >= 0.7 else VADAI_RAW.darkened(0.15)
-			canvas.draw_circle(at, 5.0, color)
-			canvas.draw_circle(at + Vector2(-1, -1), 3.5, color.lightened(0.12))
-			canvas.draw_circle(at, 1.5, PANEL_DARK)
-		"biscuit":
-			canvas.draw_rect(Rect2(at + Vector2(-4, -4), Vector2(8, 8)), Color("d9a55b"))
-			for dot in [Vector2(-2, -2), Vector2(1, -2), Vector2(-2, 1), Vector2(1, 1)]:
-				canvas.draw_rect(Rect2(at + dot, Vector2(1, 1)), Color("8a5a2b"))
-		"bun":
-			canvas.draw_circle(at + Vector2(0, 1), 5.0, Color("c98a45"))
-			canvas.draw_rect(Rect2(at + Vector2(-5, 1), Vector2(10, 4)), Color("c98a45"))
-			canvas.draw_rect(Rect2(at + Vector2(-2, -3), Vector2(3, 1)), Color("f0c98a"))
+	canvas.draw_texture(PixelArt.item_texture(item, quality < 0.7), (at - Vector2(PixelArt.ITEM) / 2.0).round())
 
 
 ## Draws a menu symbol centred on "at": a menu item, or "coin", "heart",
