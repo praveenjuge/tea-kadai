@@ -394,6 +394,9 @@ h1 {
 
 .install h2 { font-size: 20px; }
 
+.install p + p { margin-top: 12px; }
+.install p + h3 { margin-top: 24px; }
+
 .install-intro {
   margin-bottom: 20px !important;
   color: var(--muted) !important;
