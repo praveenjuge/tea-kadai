@@ -5,11 +5,18 @@
 
 A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai street. Make tea by hand, fry vadai and bajji, get to know your regulars, and grow the shop week by week.
 
+**[tea-kadai.praveenjuge.com](https://tea-kadai.praveenjuge.com)**
+
 [![Download for Mac](https://img.shields.io/badge/Download-Mac-2f7fb5?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-macOS.zip)
 [![Download for Windows](https://img.shields.io/badge/Download-Windows-e8a33d?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Windows.exe)
 [![Download for Linux](https://img.shields.io/badge/Download-Linux-3a8a3a?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Linux.tar.gz)
 
-![Tea Kadai: a morning rush at the kadai, with Karthik asking a question](docs/screenshot.png)
+![The morning rush: customers wait at the counter with their orders in bubbles, above the tea station, the fryer and the serving shelf](website/public/screenshots/morning-rush.png)
+
+| | |
+| --- | --- |
+| ![An evening rush in the rain, with a full counter](website/public/screenshots/rainy-evening.png) | ![The morning market: the newspaper, the week's weather and goals, and the market stalls](website/public/screenshots/market.png) |
+| ![The night tally on a chalkboard, with the week's goals and the regulars' news](website/public/screenshots/night.png) | ![The Grow panel with helpers to hire](website/public/screenshots/grow.png) |
 
 ## Install
 
@@ -144,6 +151,7 @@ assets/sounds/              Sound effects, ambience and music (placeholders for 
 assets/fonts/               Pixelify Sans (SIL Open Font License)
 tools/make_sounds.gd        Synthesizes the placeholder sounds
 tools/make_sprites.gd       Exports every sprite to docs/sprites.png
+tools/take_screenshots.gd   Takes the README and website screenshots
 tests/                      Headless rule checks and an input-driven play test
 docs/PLAN.md                The game plan
 .github/workflows/          Builds and releases on every push to main
@@ -158,6 +166,12 @@ Preview it locally:
 
 ```bash
 cd website && npx wrangler dev
+```
+
+The screenshots here and on the site come from the real game. To retake them (a game window opens for about a minute):
+
+```bash
+godot --path . -s tools/take_screenshots.gd
 ```
 
 ## Licence

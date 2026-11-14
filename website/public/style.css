@@ -239,10 +239,17 @@ h1 {
   font-size: 16px;
 }
 
-/* Screenshot in a wooden frame */
-.shot {
+/* Screenshot carousel in a wooden frame. It scrolls and snaps on its own
+   (swipe, trackpad, arrow keys); the buttons and dots just steer it. */
+.gallery {
   margin: 24px 0 64px;
-  padding: 12px;
+}
+
+.gallery-frame {
+  --pad: 12px;
+  position: relative;
+  container-type: inline-size;
+  padding: var(--pad);
   background: var(--panel);
   border: var(--px) solid var(--ink);
   box-shadow:
@@ -250,13 +257,95 @@ h1 {
     0 12px 0 var(--ink);
 }
 
-.shot img {
+.slides {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.slides::-webkit-scrollbar { display: none; }
+
+.slides:focus-visible {
+  outline: var(--px) solid var(--text);
+  outline-offset: var(--px);
+}
+
+.slides > li {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+
+.slides figure { margin: 0; }
+
+.slides img {
   display: block;
   width: 100%;
   height: auto;
+  aspect-ratio: 16 / 9;
   image-rendering: pixelated;
   border: var(--px) solid var(--ink);
+  background: var(--panel-dark);
 }
+
+.slides figcaption {
+  padding: 12px 4px 0;
+  text-align: center;
+  font-size: 17px;
+  color: var(--text);
+}
+
+.nav {
+  position: absolute;
+  /* Centred on the 16:9 image, not the caption under it. */
+  top: calc(var(--pad) + 100cqw * 9 / 32);
+  transform: translateY(-50%);
+  width: 52px;
+  height: 52px;
+  padding: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--ink);
+  border: var(--px) solid var(--ink);
+  box-shadow:
+    inset var(--px) var(--px) 0 var(--accent-light),
+    inset calc(var(--px) * -1) calc(var(--px) * -1) 0 var(--accent-dark),
+    0 var(--px) 0 var(--ink);
+  cursor: pointer;
+}
+
+.nav:hover { background: var(--accent-light); }
+.nav:active { transform: translateY(calc(-50% + var(--px))); box-shadow: none; }
+.nav:focus-visible { outline: var(--px) solid var(--text); outline-offset: 2px; }
+.nav svg { width: 24px; height: 24px; fill: currentColor; }
+.nav[disabled] { opacity: 0.4; cursor: default; }
+.prev { left: -18px; }
+.next { right: -18px; }
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.dots button {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: var(--line);
+  border: 3px solid var(--ink);
+  cursor: pointer;
+}
+
+.dots button[aria-current="true"] { background: var(--accent); }
+.dots button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
 
 /* Features */
 .features {
@@ -324,6 +413,11 @@ footer {
 
 @media (max-width: 680px) {
   .dl { width: 100%; max-width: 360px; }
+  .gallery-frame { --pad: 6px; }
+  .nav { width: 40px; height: 40px; padding: 6px; }
+  .prev { left: -10px; }
+  .next { right: -10px; }
+  .slides figcaption { font-size: 15px; }
   .hero { padding-top: 28px; }
   .install { padding: 20px; }
 }
@@ -331,4 +425,5 @@ footer {
 @media (prefers-reduced-motion: reduce) {
   .lights, .steam path { animation: none; }
   .dl { transition: none; }
+  .slides { scroll-behavior: auto; }
 }

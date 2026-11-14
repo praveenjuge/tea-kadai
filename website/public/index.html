@@ -14,7 +14,7 @@
   <meta property="og:url" content="https://tea-kadai.praveenjuge.com/">
   <meta property="og:title" content="Tea Kadai">
   <meta property="og:description" content="A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai street. Free for Mac, Windows and Linux.">
-  <meta property="og:image" content="https://tea-kadai.praveenjuge.com/screenshot.png">
+  <meta property="og:image" content="https://tea-kadai.praveenjuge.com/screenshots/morning-rush.png">
   <meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
@@ -68,9 +68,43 @@
       <p class="mobile-note" id="mobile-note" hidden>Tea Kadai is a computer game. Open this page on a Mac, Windows or Linux PC to download it.</p>
     </header>
 
-    <figure class="shot">
-      <img src="/screenshot.png" width="1280" height="720" alt="A morning rush at the kadai: customers wait at the counter while Karthik asks a question, with the tea, fryer and serving shelf below.">
-    </figure>
+    <section class="gallery" aria-roledescription="carousel" aria-label="Screenshots">
+      <div class="gallery-frame">
+        <ul class="slides" id="slides" tabindex="0">
+          <li><figure>
+            <img src="/screenshots/morning-rush.png" width="1280" height="720" alt="The morning rush: customers wait at the counter with their orders in bubbles, above the tea station, the fryer and the serving shelf.">
+            <figcaption>The morning rush. Make tea, fry vadai, and hand over what's in each bubble.</figcaption>
+          </figure></li>
+          <li><figure>
+            <img src="/screenshots/rainy-evening.png" width="1280" height="720" alt="An evening rush in the rain: a full counter, a bus going by and a customer chatting about the weather." loading="lazy">
+            <figcaption>Rain on an evening rush. Everyone wants tea.</figcaption>
+          </figure></li>
+          <li><figure>
+            <img src="/screenshots/market.png" width="1280" height="720" alt="The morning market: the newspaper, the week's weather, the week's goals and three market stalls." loading="lazy">
+            <figcaption>Plan the day: read the paper, check the weather, and stock up at the market.</figcaption>
+          </figure></li>
+          <li><figure>
+            <img src="/screenshots/night.png" width="1280" height="720" alt="The night tally on a chalkboard in front of the closed kadai, with the week's goals and the regulars' news." loading="lazy">
+            <figcaption>Count the day's takings and catch up with your regulars.</figcaption>
+          </figure></li>
+          <li><figure>
+            <img src="/screenshots/grow.png" width="1280" height="720" alt="The Grow panel with helpers to hire: flask boys, office tea runners and a bus stand cart." loading="lazy">
+            <figcaption>Grow the kadai with helpers, staff, boosts and upgrades.</figcaption>
+          </figure></li>
+          <li><figure>
+            <img src="/screenshots/title.png" width="1280" height="720" alt="The title screen at dawn over the street, with Continue, New game and Settings." loading="lazy">
+            <figcaption>The game saves every morning, so you can pick up where you left off.</figcaption>
+          </figure></li>
+        </ul>
+        <button class="nav prev" type="button" aria-label="Previous screenshot" data-step="-1">
+          <svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><path d="M4 1h1v1h-1zM3 2h1v1h-1zM2 3h1v2h-1zM3 5h1v1h-1zM4 6h1v1h-1z"/></svg>
+        </button>
+        <button class="nav next" type="button" aria-label="Next screenshot" data-step="1">
+          <svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><path d="M3 1h1v1h-1zM4 2h1v1h-1zM5 3h1v2h-1zM4 5h1v1h-1zM3 6h1v1h-1z"/></svg>
+        </button>
+      </div>
+      <div class="dots" id="dots"></div>
+    </section>
 
     <section class="features" aria-label="What you do">
       <article>

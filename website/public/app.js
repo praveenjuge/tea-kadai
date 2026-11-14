@@ -1,5 +1,6 @@
-// Puts the visitor's own system first, and fills in the latest version and
-// file sizes from GitHub. The download links work without any of this.
+// Puts the visitor's own system first, fills in the latest version and file
+// sizes from GitHub, and runs the screenshot carousel. The download links and
+// screenshots work without any of this.
 
 function detectOS() {
   const ua = navigator.userAgent;
@@ -42,3 +43,51 @@ fetch("https://api.github.com/repos/praveenjuge/tea-kadai/releases/latest", {
   .catch(() => {
     // Rate limited or offline: the buttons still point at the latest release.
   });
+
+// Screenshot carousel. The strip scrolls and snaps natively; the arrows,
+// dots and arrow keys move it one screenshot at a time.
+const slides = document.getElementById("slides");
+const dotsBox = document.getElementById("dots");
+const items = [...slides.children];
+const prevButton = document.querySelector(".nav.prev");
+const nextButton = document.querySelector(".nav.next");
+
+const dots = items.map((item, index) => {
+  const dot = document.createElement("button");
+  dot.type = "button";
+  dot.setAttribute("aria-label", `Screenshot ${index + 1} of ${items.length}`);
+  dot.addEventListener("click", () => goTo(index));
+  dotsBox.append(dot);
+  return dot;
+});
+
+function current() {
+  return Math.round(slides.scrollLeft / slides.clientWidth);
+}
+
+function goTo(index) {
+  const target = Math.max(0, Math.min(items.length - 1, index));
+  slides.scrollTo({ left: target * slides.clientWidth });
+}
+
+function update() {
+  const index = current();
+  dots.forEach((dot, i) => dot.setAttribute("aria-current", String(i === index)));
+  prevButton.disabled = index === 0;
+  nextButton.disabled = index === items.length - 1;
+}
+
+for (const button of [prevButton, nextButton]) {
+  button.addEventListener("click", () => goTo(current() + Number(button.dataset.step)));
+}
+
+slides.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    goTo(current() + (event.key === "ArrowRight" ? 1 : -1));
+  }
+});
+
+slides.addEventListener("scroll", () => requestAnimationFrame(update), { passive: true });
+window.addEventListener("resize", update);
+update();
