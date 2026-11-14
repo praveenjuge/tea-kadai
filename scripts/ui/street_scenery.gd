@@ -95,8 +95,17 @@ func draw_buildings() -> void:
 	var night := _view.service().clock.minutes() > 1120.0
 	var x := -20.0
 	var i := 0
+	var kadai_done := false
 	while x < 26.0:
+		# The kadai's own building takes its place in the row.
+		if not kadai_done and x >= StreetView.SHOP_FROM.x - 0.01:
+			_view.draw_kadai_building()
+			x = StreetView.SHOP_TO.x
+			kadai_done = true
+			continue
 		var width := 2.5 + float((i * 7) % 3) * 0.5
+		if not kadai_done and x + width > StreetView.SHOP_FROM.x:
+			width = StreetView.SHOP_FROM.x - x
 		var height := 70.0 + float((i * 37) % 5) * 14.0
 		var color := BUILDING_COLORS[(i * 5) % BUILDING_COLORS.size()]
 		var from := Vector2(x, -3.6)
@@ -162,7 +171,7 @@ func draw_ground() -> void:
 	for crack in [Vector2(-2.3, 2.1), Vector2(8.6, 3.4), Vector2(11.2, 1.2)]:
 		var a := _view._iso(crack)
 		_view.draw_polyline(PackedVector2Array([a, a + Vector2(4, 2), a + Vector2(6, 1), a + Vector2(10, 4)]), PAVEMENT_LINE.darkened(0.15), 1.0)
-	_draw_kolam(Vector2(4.0, 3.9))
+	_draw_kolam(Vector2(4.0, 2.6))
 	# Kerb, drain with grates, road, and lane markings.
 	_view._quad(Vector2(-30, 5.4), Vector2(30, 5.65), Color("8c8273"))
 	_view._quad(Vector2(-30, 5.65), Vector2(30, 5.8), Color("3a3634"))
@@ -225,9 +234,9 @@ func draw_shadows() -> void:
 	if not sun_up() or _view.service().is_raining():
 		return
 	var shade := Color(0.2, 0.12, 0.05, 0.22)
-	var offset := shadow_offset(60.0)
-	var footprint := [_view._iso(Vector2(1.4, -0.3)), _view._iso(Vector2(6.6, -0.3)),
-		_view._iso(Vector2(6.6, 2.0)), _view._iso(Vector2(1.4, 2.0))]
+	var offset := shadow_offset(30.0)
+	var footprint := [_view._iso(StreetView.COUNTER_FROM), _view._iso(Vector2(StreetView.COUNTER_TO.x, StreetView.COUNTER_FROM.y)),
+		_view._iso(StreetView.COUNTER_TO), _view._iso(Vector2(StreetView.COUNTER_FROM.x, StreetView.COUNTER_TO.y))]
 	var cast := PackedVector2Array([footprint[2], footprint[3], footprint[3] + offset, footprint[2] + offset])
 	_view.draw_colored_polygon(cast, shade)
 	var tree := _view._iso(Vector2(-0.6, 3.6))

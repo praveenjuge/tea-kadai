@@ -10,8 +10,21 @@ signal answered(seat: int, index: int)
 const HALF_W := 20.0
 const HALF_H := 10.0
 ## Where customers stand at the counter, in tile coordinates.
-## The fifth spot, at the bench, opens with the bench upgrade.
-const SEAT_TILES: Array[Vector2] = [Vector2(1.9, 2.9), Vector2(3.4, 2.9), Vector2(4.9, 2.9), Vector2(6.4, 2.9), Vector2(7.9, 2.9)]
+## Customers stand at the shop's counter. The fifth spot, by the table
+## outside, opens with the bench upgrade.
+const SEAT_TILES: Array[Vector2] = [Vector2(1.9, 1.0), Vector2(3.4, 1.0), Vector2(4.9, 1.0), Vector2(6.4, 1.0), Vector2(8.3, 1.9)]
+## The kadai's building in the row (back corner to front corner, in tiles),
+## how tall it is, and how tall the shop's open front is.
+const SHOP_FROM := Vector2(1.0, -3.6)
+const SHOP_TO := Vector2(7.0, -0.7)
+const SHOP_HEIGHT := 104.0
+const SHOP_OPENING := 54.0
+## The counter across the shop front, and the table outside.
+const COUNTER_FROM := Vector2(1.4, -0.6)
+const COUNTER_TO := Vector2(6.6, 0.2)
+const COUNTER_MID_Y := -0.2
+const COUNTER_HEIGHT := 14.0
+const SEATING := Vector2(8.0, 0.6)
 ## The edge of the road that customers walk in from and leave to.
 const ROAD_EDGE_Y := 6.6
 const WALK_SECONDS := 0.7
@@ -158,15 +171,13 @@ func _iso(tile: Vector2, up: float = 0.0) -> Vector2:
 # --- Drawing --------------------------------------------------------------
 
 func _draw() -> void:
-	_origin = Vector2(roundf(size.x * 0.5 - 60.0), roundf(size.y * 0.5 - 28.0))
+	_origin = Vector2(roundf(size.x * 0.5 - 50.0), roundf(size.y * 0.5 - 8.0))
 	_scenery.draw_sky()
 	_scenery.draw_buildings()
 	_scenery.draw_ground()
 	_scenery.draw_shadows()
 	_draw_stall()
 	_draw_tree(Vector2(-0.6, 3.6))
-	if _service.state.has_upgrade("bench"):
-		_box(Vector2(7.1, 2.3), Vector2(8.7, 2.7), 9, WOOD.lightened(0.1), WOOD.darkened(0.1), WOOD.darkened(0.3))
 	_draw_cow(Vector2(9.4, 3.9))
 	for seat in _service.seats.size():
 		var customer = _service.seats[seat]
@@ -207,81 +218,177 @@ func _walk_tile(seat: int) -> Vector2:
 	return Vector2(to.x - 1.0, ROAD_EDGE_Y).lerp(to, t)
 
 
-func _draw_stall() -> void:
-	# The stall starts faded; fresh paint makes it bright.
+## The kadai's building in the street's row: the shop on the ground floor,
+## open at the front so you can see in, with flats above. Drawn by the
+## scenery in row order so the neighbours overlap it correctly.
+func draw_kadai_building() -> void:
 	var painted := _service.state.has_upgrade("paint")
 	var paint := STALL_PAINT if painted else STALL_PAINT.lerp(Color("8a8f94"), 0.55)
-	_box(Vector2(1.4, -0.3), Vector2(6.6, 0.0), 66, paint.lightened(0.1), paint, paint.darkened(0.2))
+	var x0 := SHOP_FROM.x
+	var x1 := SHOP_TO.x
+	var front := SHOP_TO.y
+	var back := SHOP_FROM.y
+	_box(Vector2(x0, back), Vector2(x1, front), SHOP_HEIGHT, paint.lightened(0.1), paint, paint.darkened(0.25))
+	# Inside the shop, seen through the open front: floor, side wall, back wall.
+	var in0 := x0 + 0.4
+	var in1 := x1 - 0.4
+	var deep := front - 1.0
+	var tiles := PackedVector2Array([_iso(Vector2(in0, deep)), _iso(Vector2(in1, deep)), _iso(Vector2(in1, front)), _iso(Vector2(in0, front))])
+	draw_colored_polygon(tiles, Color("b5582f"))
+	for t in 4:
+		var y := lerpf(deep, front, (t + 1) / 5.0)
+		draw_line(_iso(Vector2(in0, y)), _iso(Vector2(in1, y)), Color("9a4a26"), 1.0)
+	var wall := Color("e8d9b8") if painted else Color("cfc4ad")
+	draw_colored_polygon(PackedVector2Array([_iso(Vector2(in0, deep)), _iso(Vector2(in0, front)),
+		_iso(Vector2(in0, front), SHOP_OPENING), _iso(Vector2(in0, deep), SHOP_OPENING)]), wall.darkened(0.2))
+	draw_colored_polygon(PackedVector2Array([_iso(Vector2(in0, deep)), _iso(Vector2(in1, deep)),
+		_iso(Vector2(in1, deep), SHOP_OPENING), _iso(Vector2(in0, deep), SHOP_OPENING)]), wall)
+	_draw_shop_inside(in0, in1, deep, front)
+	# The front wall around the opening: pillars and the wall above.
+	_wall_quad(x0, in0, front, 0.0, SHOP_OPENING, paint)
+	_wall_quad(in1, x1, front, 0.0, SHOP_OPENING, paint)
+	_wall_quad(x0, x1, front, SHOP_OPENING, SHOP_HEIGHT, paint)
+	draw_line(_iso(Vector2(in0, front), SHOP_OPENING), _iso(Vector2(in1, front), SHOP_OPENING), paint.darkened(0.5), 2.0)
 	if not painted:
-		for stain in [Vector2(2.3, 0.0), Vector2(4.8, 0.0)]:
-			var at := _iso(stain, 18)
-			draw_rect(Rect2(at, Vector2(9, 5)), Color(0.3, 0.25, 0.2, 0.25))
-	if _service.state.has_upgrade("radio"):
-		_draw_radio_and_posters()
-	# Shelf with snack packets and jars on the back wall.
-	var shelf_l := _iso(Vector2(1.6, 0.0), 34)
-	var shelf_r := _iso(Vector2(6.4, 0.0), 34)
-	draw_line(shelf_l, shelf_r, WOOD.darkened(0.3), 2.0)
-	var packet_colors := [Color("e0604e"), Color("e8c547"), Color("7cc46a"), Color("d9a55b")]
-	for i in 9:
-		var at := shelf_l.lerp(shelf_r, (i + 0.5) / 9.0)
-		draw_rect(Rect2(at + Vector2(-3, -9), Vector2(6, 8)), packet_colors[i % packet_colors.size()])
-	for i in 4:
-		var hang := _iso(Vector2(2.0 + i * 1.3, 0.0), 58)
-		draw_line(hang, hang + Vector2(0, 8), Color("ded4bf"), 1.0)
-		draw_rect(Rect2(hang + Vector2(-3, 8), Vector2(6, 9)), packet_colors[(i + 1) % packet_colors.size()].lightened(0.2))
+		for stain in [Vector2(x0 + 0.8, front), Vector2(x1 - 1.5, front)]:
+			draw_rect(Rect2(_iso(stain, SHOP_OPENING + 20), Vector2(10, 6)), Color(0.3, 0.25, 0.2, 0.25))
+	_draw_flat_above(x0, x1, front, paint)
+	_draw_shop_sign((x0 + x1) / 2.0, front, painted)
 
-	# Pillars, counter, and the roof.
-	for corner in [Vector2(1.4, 0.0), Vector2(6.6, 0.0)]:
-		_box(corner + Vector2(0, 0.0), corner + Vector2(0.15, 0.15), 66, WOOD, WOOD.darkened(0.2), WOOD.darkened(0.35))
-	if _service.state.has_upgrade("counter"):
-		_box(Vector2(0.2, 1.2), Vector2(1.4, 2.0), 20, WOOD.lightened(0.15), WOOD, WOOD.darkened(0.25))
-		var stove := _iso(Vector2(0.8, 1.6), 20)
-		draw_rect(Rect2(stove + Vector2(-8, -4), Vector2(16, 4)), Color("2b2b2b"))
-		draw_rect(Rect2(stove + Vector2(-7, -14), Vector2(14, 10)), Color("6a6f75"))
-		draw_rect(Rect2(stove + Vector2(-8, -15), Vector2(16, 2)), Color("9aa3ad"))
-	_box(Vector2(1.4, 1.2), Vector2(6.6, 2.0), 20, WOOD.lightened(0.15), WOOD, WOOD.darkened(0.25))
-	_quad_up(Vector2(1.4, 1.95), Vector2(6.6, 2.0), 14, 6, Color("e8c547"))
-	for corner in [Vector2(1.4, 1.9), Vector2(6.45, 1.9)]:
-		_box(corner, corner + Vector2(0.15, 0.15), 60, WOOD, WOOD.darkened(0.2), WOOD.darkened(0.35))
+
+func _wall_quad(from_x: float, to_x: float, y: float, low: float, high: float, color: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([_iso(Vector2(from_x, y), low), _iso(Vector2(to_x, y), low),
+		_iso(Vector2(to_x, y), high), _iso(Vector2(from_x, y), high)]), color)
+
+
+func _draw_shop_inside(in0: float, in1: float, deep: float, front: float) -> void:
+	# Two shelves of jars and packets on the back wall, and a tube light.
+	var colors := [Color("e0604e"), Color("e8c547"), Color("7cc46a"), Color("d9a55b"), Color("4a90d9")]
+	for shelf in 2:
+		var up := 12.0 + shelf * 14.0
+		var left := _iso(Vector2(in0 + 0.2, deep), up)
+		var right := _iso(Vector2(in1 - 0.2, deep), up)
+		draw_line(left, right, WOOD.darkened(0.3), 2.0)
+		for i in 10:
+			var at := left.lerp(right, (i + 0.5) / 10.0)
+			if shelf == 0 and i % 3 == 0:
+				draw_rect(Rect2(at + Vector2(-3, -8), Vector2(6, 8)), Color(0.9, 0.95, 1.0, 0.5))
+				draw_rect(Rect2(at + Vector2(-2, -5), Vector2(4, 5)), Color("d9a55b"))
+			else:
+				draw_rect(Rect2(at + Vector2(-2, -7), Vector2(5, 7)), colors[(i + shelf) % colors.size()])
+	var tube := _iso(Vector2((in0 + in1) / 2.0, deep), SHOP_OPENING - 6)
+	var night := _service.clock.minutes() > 1080.0
+	draw_rect(Rect2(tube + Vector2(-14, 0), Vector2(28, 2)), Color("fffbe8") if night else Color("dfe5ea"))
+	if night:
+		draw_circle(tube + Vector2(0, 14), 30.0, Color(1, 0.98, 0.85, 0.12))
+	if _service.state.has_upgrade("radio"):
+		_draw_radio_and_posters(in0, deep)
+	if _service.state.has_upgrade("fan"):
+		var fan := _iso(Vector2(in1 - 0.6, deep), 44)
+		draw_rect(Rect2(fan + Vector2(-1, 0), Vector2(2, 8)), Color("4a4a4a"))
+		draw_circle(fan, 7.0, Color(0.85, 0.88, 0.92, 0.35))
+		for i in 3:
+			var a := _time * 18.0 + i * TAU / 3.0
+			draw_line(fan, fan + Vector2(cos(a), sin(a) * 0.6) * 7.0, Color("dfe5ea"), 2.0)
+		draw_circle(fan, 1.5, Color("4a4a4a"))
+	# Bunches of bananas hanging just inside the front.
+	for spot in [in0 + 0.3, in1 - 0.3]:
+		var hook := _iso(Vector2(spot, front - 0.15), SHOP_OPENING - 2)
+		draw_line(hook, hook + Vector2(0, 4), Color("ded4bf"), 1.0)
+		for i in 5:
+			draw_rect(Rect2(hook + Vector2(-5 + i * 2, 4 + (i % 2) * 2), Vector2(2, 8)), Color("e8d23c"))
+
+
+## The flat above the shop: windows, a balcony with a plant and washing.
+func _draw_flat_above(x0: float, x1: float, front: float, paint: Color) -> void:
+	var night := _service.clock.minutes() > 1120.0
+	for w in 3:
+		var gx := x0 + 0.8 + w * 1.7
+		var at := _iso(Vector2(gx, front), SHOP_HEIGHT - 10.0)
+		var glass := Color("ffe9a8") if night and w != 1 else Color("2a3a48")
+		draw_colored_polygon(PackedVector2Array([at, at + Vector2(14, 7), at + Vector2(14, 21), at + Vector2(0, 14)]), glass)
+		draw_line(at + Vector2(7, 3.5), at + Vector2(7, 17.5), paint.darkened(0.45), 1.0)
+	var rail_l := _iso(Vector2(x0 + 0.3, front + 0.25), SHOP_HEIGHT - 30.0)
+	var rail_r := _iso(Vector2(x1 - 0.3, front + 0.25), SHOP_HEIGHT - 30.0)
+	draw_line(rail_l, rail_r, Color("3a3a40"), 1.0)
+	for i in 12:
+		var post := rail_l.lerp(rail_r, i / 11.0)
+		draw_line(post, post + Vector2(0, 8), Color("3a3a40"), 1.0)
+	var washing := [Color("e0604e"), Color("4a90d9"), Color("eef0f2"), Color("e8c547")]
+	for i in 4:
+		var at := rail_l.lerp(rail_r, 0.15 + i * 0.12) + Vector2(0, -6)
+		draw_rect(Rect2(at, Vector2(5, 7)), washing[i])
+	var pot := rail_l.lerp(rail_r, 0.85)
+	draw_rect(Rect2(pot + Vector2(-4, -6), Vector2(8, 6)), Color("b5582f"))
+	draw_circle(pot + Vector2(0, -9), 4.0, Color("4a9a3a"))
+
+
+## Above the shop front: cardboard at first, a proper painted board once the
+## shop is painted, with bulbs around it once lit.
+func _draw_shop_sign(center_x: float, front: float, painted: bool) -> void:
+	var sign_at := _iso(Vector2(center_x, front), SHOP_OPENING + 34)
+	if not painted:
+		draw_rect(Rect2(sign_at + Vector2(-20, -9), Vector2(40, 12)), Color("b08a5a"))
+		draw_rect(Rect2(sign_at + Vector2(-20, -9), Vector2(40, 12)), Color("7a5a3a"), false, 1.0)
+		_text(sign_at, "TEA", Color("3a2a1a"), HORIZONTAL_ALIGNMENT_CENTER)
+		return
+	if _service.state.has_upgrade("sign"):
+		var lit := _service.clock.minutes() > 1050.0
+		for i in 12:
+			var bulb := sign_at + Vector2(-38 + i * 6.8, -13)
+			var on := lit and (int(_time * 4.0) + i) % 3 != 0
+			draw_rect(Rect2(bulb, Vector2(2, 2)), Color("fff3a8") if on else Color("8a7a4a"))
+			draw_rect(Rect2(bulb + Vector2(0, 17), Vector2(2, 2)), Color("fff3a8") if on else Color("8a7a4a"))
+		if lit:
+			draw_circle(sign_at + Vector2(0, -4), 46.0, Color(1.0, 0.95, 0.6, 0.12))
+	draw_rect(Rect2(sign_at + Vector2(-36, -11), Vector2(72, 15)), Color("e8c547"))
+	draw_rect(Rect2(sign_at + Vector2(-36, -11), Vector2(72, 15)), Color("b5321f"), false, 1.0)
+	_text(sign_at + Vector2(0, 1), "TEA KADAI", Color("b5321f"), HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## In front of the shop: the counter and what's on it, the awning, plants,
+## and a table with plastic chairs on the pavement.
+func _draw_stall() -> void:
+	var big := _service.state.has_upgrade("counter")
+	var c0 := COUNTER_FROM.x - (0.2 if big else 0.0)
+	var c1 := COUNTER_TO.x + (0.2 if big else 0.0)
+	_box(Vector2(c0, COUNTER_FROM.y), Vector2(c1, COUNTER_TO.y), COUNTER_HEIGHT, WOOD.lightened(0.15), WOOD, WOOD.darkened(0.25))
+	_quad_up(Vector2(c0, COUNTER_TO.y - 0.05), Vector2(c1, COUNTER_TO.y), COUNTER_HEIGHT - 4.0, 4, Color("e8c547"))
 	_draw_counter_things()
-	# A tarp awning over the front, so the shelf behind stays visible.
-	var roof := [_iso(Vector2(1.1, 1.1), 66), _iso(Vector2(6.9, 1.1), 66), _iso(Vector2(6.9, 2.5), 58), _iso(Vector2(1.1, 2.5), 58)]
+	_draw_seating()
+	# A short tarp awning fixed above the open front, so you can still see in.
+	var top := SHOP_OPENING + 16.0
+	var reach := SHOP_TO.y + 0.6
+	var roof := [_iso(Vector2(SHOP_FROM.x + 0.1, SHOP_TO.y), top), _iso(Vector2(SHOP_TO.x - 0.1, SHOP_TO.y), top),
+		_iso(Vector2(SHOP_TO.x - 0.1, reach), top - 12.0), _iso(Vector2(SHOP_FROM.x + 0.1, reach), top - 12.0)]
 	draw_colored_polygon(PackedVector2Array(roof), TARP)
 	for i in range(1, 8):
 		var t := i / 8.0
 		draw_line(roof[0].lerp(roof[1], t), roof[3].lerp(roof[2], t), TARP.darkened(0.2), 1.0)
 	draw_line(roof[3], roof[2], TARP.darkened(0.4), 2.0)
-	# Bananas hanging under the awning's front edge.
-	var hook := _iso(Vector2(1.7, 2.4), 56)
-	draw_line(hook, hook + Vector2(0, 4), Color("ded4bf"), 1.0)
-	for i in 5:
-		draw_rect(Rect2(hook + Vector2(-5 + i * 2, 4 + (i % 2) * 2), Vector2(2, 8)), Color("e8d23c"))
+	# A scalloped edge along the front.
+	for i in 16:
+		var at: Vector2 = roof[3].lerp(roof[2], (i + 0.5) / 16.0)
+		draw_circle(at + Vector2(0, 1), 3.0, TARP.darkened(0.15) if i % 2 == 0 else Color("f3e3c3"))
 	if _service.state.has_upgrade("plants"):
 		_draw_plants_and_lights(roof)
-	# Sign board on top of the back wall: cardboard at first, a proper board once painted.
-	var sign_at := _iso(Vector2(4.0, -0.15), 80)
-	if not painted:
-		draw_rect(Rect2(sign_at + Vector2(-20, -9), Vector2(40, 12)), Color("b08a5a"))
-		draw_rect(Rect2(sign_at + Vector2(-20, -9), Vector2(40, 12)), Color("7a5a3a"), false, 1.0)
-		_text(sign_at + Vector2(0, 0), "TEA", Color("3a2a1a"), HORIZONTAL_ALIGNMENT_CENTER)
-		return
-	if _service.state.has_upgrade("sign"):
-		var lit := _service.clock.minutes() > 1050.0
-		for i in 12:
-			var bulb := sign_at + Vector2(-36 + i * 6.5, -12)
-			var on := lit and (int(_time * 4.0) + i) % 3 != 0
-			draw_rect(Rect2(bulb, Vector2(2, 2)), Color("fff3a8") if on else Color("8a7a4a"))
-			draw_rect(Rect2(bulb + Vector2(0, 16), Vector2(2, 2)), Color("fff3a8") if on else Color("8a7a4a"))
-		if lit:
-			draw_circle(sign_at + Vector2(0, -4), 44.0, Color(1.0, 0.95, 0.6, 0.12))
-	draw_rect(Rect2(sign_at + Vector2(-34, -10), Vector2(68, 13)), Color("e8c547"))
-	draw_rect(Rect2(sign_at + Vector2(-34, -10), Vector2(68, 13)), Color("b5321f"), false, 1.0)
-	_text(sign_at + Vector2(0, 0), "TEA KADAI", Color("b5321f"), HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## A steel table with two plastic chairs on the pavement beside the shop.
+func _draw_seating() -> void:
+	var table := SEATING
+	for chair in [[Vector2(-0.7, 0.0), Color("d64a3a")], [Vector2(0.9, 0.1), Color("2f6db5")]]:
+		var at: Vector2 = table + chair[0]
+		var color: Color = chair[1]
+		_box(at, at + Vector2(0.35, 0.35), 6, color.lightened(0.15), color, color.darkened(0.25))
+		_box(at, at + Vector2(0.06, 0.35), 13, color, color.darkened(0.1), color.darkened(0.3))
+	_box(table, table + Vector2(0.6, 0.5), 11, Color("c9ced6"), Color("8a9098"), Color("6a7078"))
+	for i in 2:
+		Style.draw_item(self, "tea", _iso(table + Vector2(0.15 + i * 0.3, 0.25), 15), 0.9)
 
 
 func _draw_plants_and_lights(roof: Array) -> void:
-	for spot in [Vector2(1.0, 2.3), Vector2(7.0, 2.1)]:
+	for spot in [Vector2(SHOP_FROM.x - 0.2, SHOP_TO.y + 0.4), Vector2(SHOP_TO.x + 0.2, SHOP_TO.y + 0.4)]:
 		var pot := _iso(spot)
 		draw_rect(Rect2(pot + Vector2(-5, -8), Vector2(10, 8)), Color("b5582f"))
 		draw_rect(Rect2(pot + Vector2(-6, -9), Vector2(12, 2)), Color("c96a3a"))
@@ -298,16 +405,16 @@ func _draw_plants_and_lights(roof: Array) -> void:
 			draw_circle(at + Vector2(1, 1), 4.0, Color(color, 0.18))
 
 
-func _draw_radio_and_posters() -> void:
-	var poster := _iso(Vector2(2.0, 0.0), 60)
+func _draw_radio_and_posters(in0: float, deep: float) -> void:
+	var poster := _iso(Vector2(in0 + 0.5, deep), 52)
 	draw_rect(Rect2(poster + Vector2(-6, 0), Vector2(12, 16)), Color("2f6db5"))
 	draw_rect(Rect2(poster + Vector2(-5, 2), Vector2(10, 6)), Color("e8c547"))
 	draw_rect(Rect2(poster + Vector2(-5, 10), Vector2(10, 2)), Color("f3e3c3"))
-	var photo := _iso(Vector2(3.0, 0.0), 58)
+	var photo := _iso(Vector2(in0 + 1.5, deep), 50)
 	draw_rect(Rect2(photo + Vector2(-5, 0), Vector2(10, 9)), Color("6b4a2e"))
 	draw_rect(Rect2(photo + Vector2(-4, 1), Vector2(8, 7)), Color("d9c9a5"))
 	draw_rect(Rect2(photo + Vector2(-1, 3), Vector2(2, 4)), Color("6b4a2e"))
-	var radio := _iso(Vector2(5.4, 0.0), 44)
+	var radio := _iso(Vector2(in0 + 3.2, deep), 44)
 	draw_rect(Rect2(radio + Vector2(-8, -8), Vector2(16, 9)), Color("8a3a2a"))
 	draw_circle(radio + Vector2(-3, -4), 2.5, Color("3a2a1a"))
 	draw_rect(Rect2(radio + Vector2(2, -6), Vector2(4, 1)), Color("e8c547"))
@@ -324,7 +431,7 @@ func _draw_counter_things() -> void:
 	# Biscuit jars on the left of the counter.
 	var biscuits := _service.state.how_many("biscuit")
 	for i in 2:
-		var jar := _iso(Vector2(1.8 + i * 0.5, 1.55), 20)
+		var jar := _iso(Vector2(COUNTER_FROM.x + 0.4 + i * 0.5, COUNTER_MID_Y), COUNTER_HEIGHT)
 		draw_rect(Rect2(jar + Vector2(-4, -12), Vector2(8, 12)), Color(0.9, 0.95, 1.0, 0.45))
 		var fill := clampi(biscuits - i * 10, 0, 10)
 		if fill > 0:
@@ -334,28 +441,20 @@ func _draw_counter_things() -> void:
 	var glass := 0
 	for kind in Catalog.GLASSES:
 		for quality in _service.ready[kind]:
-			Style.draw_item(self, kind, _iso(Vector2(2.7 + glass * 0.36, 1.6), 26), quality)
+			Style.draw_item(self, kind, _iso(Vector2(COUNTER_FROM.x + 1.3 + glass * 0.36, COUNTER_MID_Y), COUNTER_HEIGHT + 6.0), quality)
 			glass += 1
 	var vadai: Array = _service.ready["vadai"]
 	if not vadai.is_empty():
-		var plate := _iso(Vector2(5.0, 1.6), 21)
+		var plate := _iso(Vector2(COUNTER_FROM.x + 3.6, COUNTER_MID_Y), COUNTER_HEIGHT + 1.0)
 		draw_rect(Rect2(plate + Vector2(-9, -1), Vector2(18, 3)), Color("d8dde3"))
 		for i in vadai.size():
 			Style.draw_item(self, "vadai", plate + Vector2(-5 + (i % 3) * 5, -4 - (i / 3) * 4), vadai[i])
 	# Stove and milk pot with steam on the right. The upgrade is a bigger pot.
-	var stove := _iso(Vector2(5.9, 1.6), 20)
+	var stove := _iso(Vector2(COUNTER_TO.x - 0.7, COUNTER_MID_Y), COUNTER_HEIGHT)
 	var pot := 1.4 if _service.state.has_upgrade("pot") else 1.0
 	draw_rect(Rect2(stove + Vector2(-9, -4), Vector2(18, 4)), Color("2b2b2b"))
 	draw_rect(Rect2(stove + Vector2(-8, -20) * pot, Vector2(16, 16) * pot), Color("b8863b"))
 	draw_rect(Rect2(stove + Vector2(-9 * pot, -20 * pot - 2), Vector2(18 * pot, 3)), Color("d9a55b"))
-	if _service.state.has_upgrade("fan"):
-		var fan := _iso(Vector2(2.6, 0.2), 40)
-		draw_rect(Rect2(fan + Vector2(-1, 0), Vector2(2, 10)), Color("4a4a4a"))
-		draw_circle(fan, 7.0, Color(0.85, 0.88, 0.92, 0.35))
-		for i in 3:
-			var a := _time * 18.0 + i * TAU / 3.0
-			draw_line(fan, fan + Vector2(cos(a), sin(a) * 0.6) * 7.0, Color("dfe5ea"), 2.0)
-		draw_circle(fan, 1.5, Color("4a4a4a"))
 	for i in 3:
 		var x := stove.x - 5 + i * 5 + sin(_time * 2.5 + i) * 2.0
 		var y := stove.y - 26 - fmod(_time * 10.0 + i * 5.0, 16.0)
