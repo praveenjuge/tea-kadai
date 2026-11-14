@@ -99,6 +99,13 @@ const PHASES := [
 ]
 ## No new customers after 9:30 PM.
 const LAST_ARRIVAL_MINUTE := 1290
+## Gaps between arrivals are stretched on the first days so the week starts
+## gently. Index 0 is day 1; later days use the last value.
+const DAY_PACE: Array[float] = [1.7, 1.4, 1.15, 1.0]
+
+
+static func pace_for_day(day: int) -> float:
+	return DAY_PACE[clampi(day - 1, 0, DAY_PACE.size() - 1)]
 
 const SEATS := 4
 ## How many made items can wait ready at once: glasses on the tray, vadai on the plate.

@@ -259,10 +259,20 @@ func _draw_bubble(seat: int, customer: Dictionary) -> void:
 	elif grumpy:
 		draw_rect(box.grow(1.0), Style.BAD, false, 2.0)
 	_text(box.position + Vector2(4, 17), str(seat + 1), Style.LINE, HORIZONTAL_ALIGNMENT_LEFT)
+	# Items you could hand over right now are bright; the rest are faded.
+	var on_hand := {}
 	for i in items.size():
-		draw_set_transform(box.position + Vector2(24 + i * 20, 13), 0.0, Vector2(2, 2))
-		Style.draw_item(self, items[i], Vector2.ZERO)
-	draw_set_transform(Vector2.ZERO)
+		var item := items[i]
+		if not on_hand.has(item):
+			on_hand[item] = _service.ready_count(item)
+		var at := box.position + Vector2(24 + i * 20, 13)
+		draw_set_transform(at, 0.0, Vector2(2, 2))
+		Style.draw_item(self, item, Vector2.ZERO)
+		draw_set_transform(Vector2.ZERO)
+		if int(on_hand[item]) > 0:
+			on_hand[item] -= 1
+		else:
+			draw_rect(Rect2(at - Vector2(9, 11), Vector2(18, 22)), Color(Style.TEXT, 0.7))
 	var calm: float = customer["patience"] / customer["patience_max"]
 	var bar_color := Style.GOOD if calm > 0.5 else (Style.WARN if calm > 0.25 else Style.BAD)
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y), Vector2(box.size.x, 3)), Color(0, 0, 0, 0.5))

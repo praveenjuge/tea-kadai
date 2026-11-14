@@ -260,7 +260,7 @@ func _update_arrivals(delta: float) -> void:
 	if _spawn_timer > 0.0:
 		return
 	var gap: Vector2 = clock.phase()["spawn_gap"]
-	_spawn_timer = rng.randf_range(gap.x, gap.y)
+	_spawn_timer = rng.randf_range(gap.x, gap.y) * Catalog.pace_for_day(state.day)
 	_arrive(_pick_weighted(clock.phase()["mix"]))
 
 

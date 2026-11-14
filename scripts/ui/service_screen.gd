@@ -41,12 +41,13 @@ func _ready() -> void:
 	_street.seat_clicked.connect(_on_seat_clicked)
 	root.add_child(_street)
 
-	# First-day hint along the bottom of the street, until the first sale.
+	# First-day hint along the top of the street, until the first sale.
+	# Messages show along the bottom, close to the stations.
 	_hint = Style.label("Make tea, then hold the button to pour and let go in the green. Click a customer to serve them.")
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
-	_hint.offset_top = -18
-	_hint.offset_bottom = -4
+	_hint.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)
+	_hint.offset_top = 4
+	_hint.offset_bottom = 18
 	_hint.add_theme_color_override("font_outline_color", Style.BG)
 	_hint.add_theme_constant_override("outline_size", 4)
 	_hint.mouse_filter = MOUSE_FILTER_IGNORE
@@ -65,11 +66,13 @@ func _ready() -> void:
 
 	_toast = Style.label("")
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_toast.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)
-	_toast.offset_top = 24
+	_toast.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
+	_toast.offset_top = -18
+	_toast.offset_bottom = -4
+	_toast.mouse_filter = MOUSE_FILTER_IGNORE
 	_toast.add_theme_color_override("font_outline_color", Style.BG)
 	_toast.add_theme_constant_override("outline_size", 4)
-	add_child(_toast)
+	_street.add_child(_toast)
 
 	_pause_cover = ColorRect.new()
 	_pause_cover.color = Color(Style.BG, 0.8)

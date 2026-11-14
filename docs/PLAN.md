@@ -152,6 +152,21 @@ Played part of a service day.
 - Mouse first. Space (tea), F (vadai), 1 to 4 (serve) and P (pause) are optional shortcuts.
 - Claude makes the pixel art as small hand-authored PNG sprites.
 
+## Playtest 2 notes (2026-11-14)
+
+After the calm-down pass.
+
+- **Felt:** better, but still busy.
+- **Working:** tea (press to fill, hold to pour) feels just right, batch vadai is liked, window size and bubbles are good, and the day length is about right.
+- **Still busy because:** eyes jump between the customers up top and the stations below.
+- **Wanted:** rushes that start slower and build over the week, sound, customers with faces and personality, and a goal to aim for.
+
+### Changes made
+
+- Day 1 has noticeably fewer customers, building up to the full pace by day 4.
+- Bubbles show which items are ready right now (bright) and which aren't (faded), so you can read the counter without looking down.
+- Messages show at the bottom of the street, next to the stations, instead of the top.
+
 ## Next up
 
 In order:
@@ -160,7 +175,8 @@ In order:
 2. **Sound:** pour splash, oil sizzle, coins, crows, auto horns, and a gentle music loop that changes with the time of day.
 3. **First regular:** one auto driver with a name, a usual order ("strong, less sugar"), and a few lines of story over the week.
 4. **Save + Mac build:** days save between sessions, plus a double-clickable `.app`.
-5. **Pixel art pass:** sprites for people, the stall, and props, replacing the drawn shapes.
+5. **Pixel art pass:** sprites for people, the stall, and props, replacing the drawn shapes. Customers get faces and a bit of personality (a wave, a sip, a nod).
+6. **A goal for the day:** a small daily target shown in the morning ("Serve 20 people", "Earn ₹300"), plus something to save up for across the week.
 
 ### Ideas parked for later
 
