@@ -11,6 +11,8 @@ A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai str
 [![Download for Windows](https://img.shields.io/badge/Download-Windows-e8a33d?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Windows.exe)
 [![Download for Linux](https://img.shields.io/badge/Download-Linux-3a8a3a?style=for-the-badge)](https://github.com/praveenjuge/tea-kadai/releases/latest/download/TeaKadai-Linux.tar.gz)
 
+[Watch the one-minute trailer](https://tea-kadai.praveenjuge.com/trailer.mp4)
+
 ![A rainy evening rush: a full counter with orders up, umbrellas going by, and customers chatting while tea is poured](website/public/screenshots/rainy-rush.gif)
 
 | | |
@@ -25,6 +27,10 @@ A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai str
 - **Linux**: extract `TeaKadai-Linux.tar.gz` and run `TeaKadai-Linux.x86_64`.
 
 The Windows build isn't signed yet; [docs/SIGNING.md](docs/SIGNING.md) has how the signing works.
+
+The game updates itself: each release also ships the game's content as `TeaKadai.pck`, which the downloaded game fetches in the background and uses from the next launch. You can turn this off in Settings. **Send feedback** on the title screen or in the pause menu opens a pre-filled GitHub issue.
+
+Store versions: [docs/ITCH.md](docs/ITCH.md) sets up itch.io (uploads run from CI once a key is added), and [docs/APP_STORE.md](docs/APP_STORE.md) covers the Mac App Store build. `tools/make_trailer.gd` records the trailer, and `tools/make_icon.gd` draws the app icon.
 
 Every push to `main` builds all three and publishes them as a new patch release. If pushes land close together, only the newest one is built and released.
 

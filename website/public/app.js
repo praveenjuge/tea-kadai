@@ -46,6 +46,11 @@ function goTo(index) {
 
 function update() {
   const index = current();
+  // The trailer stops when it's scrolled out of view.
+  items.forEach((item, i) => {
+    const video = item.querySelector("video[controls]");
+    if (video && i !== index && !video.paused) video.pause();
+  });
   dots.forEach((dot, i) => dot.setAttribute("aria-current", String(i === index)));
   prevButton.disabled = index === 0;
   nextButton.disabled = index === items.length - 1;
@@ -63,7 +68,7 @@ slides.addEventListener("keydown", (event) => {
 });
 
 // The gameplay clip plays on a loop unless the visitor prefers less motion.
-const clip = slides.querySelector("video");
+const clip = slides.querySelector("video[autoplay]");
 if (clip && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
   clip.removeAttribute("autoplay");
   clip.pause();

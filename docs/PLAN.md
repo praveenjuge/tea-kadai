@@ -243,6 +243,18 @@ Playtest: money pace felt right, golden glasses were loved, everything new was l
 - A Stats tab; helpers visible on the street; a news ticker on the title screen and in the morning paper.
 - Clicking a big cookie-like object was considered and skipped: serving stays the clicking.
 
+
+## Round 10: around the game (2026-11-14)
+
+Decided: free everywhere; itch.io and the Mac App Store as the stores (no Steam yet, no web build); a 60-second in-engine trailer with feature cards; automatic updates; a feedback button. Skipped for now: Discord, galleries, contests, socials, mobile, Tamil, merch.
+
+- **App icon:** a 64-pixel tea glass on a kolam tile, scaled to 1024 (`tools/make_icon.gd`).
+- **Updates:** releases ship `TeaKadai.pck` and `version.json`. GitHub builds download a newer pack in the background, check its size and SHA-256, and load it over the built-in content at the next launch. `--main-pack` was tried first; release templates refuse it, so the pack loads with `load_resource_pack` in the first autoload instead. Project settings can't change through a pack, so a change to autoloads or the main scene needs a full download.
+- **Feedback:** opens a GitHub issue with the version, platform and day.
+- **itch.io:** butler uploads from CI once `BUTLER_API_KEY` and `ITCH_GAME` are set.
+- **Mac App Store:** a sandboxed preset (share cards go to Pictures, no network) built locally by `tools/build_app_store.sh`.
+- **Trailer:** recorded at 1080p with the movie writer, on the website and linked from the README.
+
 ## Next up
 
 In order:
