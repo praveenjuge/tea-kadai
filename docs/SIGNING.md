@@ -28,6 +28,8 @@ The next push to `main` makes a signed, notarized Mac release. If notarization f
 
 ## Windows: SignPath Foundation
 
+**Not applied yet.** SignPath Foundation wants executables to have a verifiable reputation, decides at its discretion and has no appeal, so the plan is to apply once the game has some traction (stars, downloads, posts about it) rather than as a brand-new repo.
+
 [SignPath Foundation](https://signpath.org/) signs open source projects for free. The certificate is theirs, so Windows shows "SignPath Foundation" as the publisher. Their rules are on [signpath.org/terms](https://signpath.org/terms). The ones that matter here:
 
 - Two-factor login on GitHub and SignPath for everyone on the project.
@@ -56,4 +58,4 @@ Signing doesn't make the SmartScreen warning vanish right away: it fades as sign
 
 ## After both are live
 
-Update the "Opening it the first time" section on the website (`website/public/index.html`) and the Install section in the README, since the extra steps won't be needed anymore.
+The Mac steps are already gone from the website and README. Once Windows is signed too, drop the SmartScreen note from the "Opening it the first time" section on the website (`website/public/index.html`) and from the Install section in the README.

@@ -20,11 +20,11 @@ A cozy pixel-art shop sim about running a little tea kadai on a busy Chennai str
 
 ## Install
 
-- **Mac** (Intel and Apple Silicon): unzip `TeaKadai-macOS.zip` and open Tea Kadai. The app isn't notarized, so the first time macOS blocks it: open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
+- **Mac** (Intel and Apple Silicon): unzip `TeaKadai-macOS.zip` and open Tea Kadai. It's signed and notarized by Apple.
 - **Windows**: run `TeaKadai-Windows.exe`. If SmartScreen appears, click **More info → Run anyway**.
 - **Linux**: extract `TeaKadai-Linux.tar.gz` and run `TeaKadai-Linux.x86_64`.
 
-Signing the Mac and Windows builds is being set up; [docs/SIGNING.md](docs/SIGNING.md) has the steps.
+The Windows build isn't signed yet; [docs/SIGNING.md](docs/SIGNING.md) has how the signing works.
 
 Every push to `main` builds all three and publishes them as a new patch release. If pushes land close together, only the newest one is built and released.
 

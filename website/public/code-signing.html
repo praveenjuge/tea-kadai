@@ -18,18 +18,17 @@
 
     <section class="install">
       <h2>Windows</h2>
-      <p>Free code signing provided by <a href="https://about.signpath.io/">SignPath.io</a>, certificate by <a href="https://signpath.org/">SignPath Foundation</a>.</p>
-      <p>Signing starts once SignPath Foundation approves the project. Until then, Windows downloads are unsigned.</p>
+      <p>Windows downloads aren't signed yet. The plan is free code signing through <a href="https://about.signpath.io/">SignPath.io</a>, with a certificate by <a href="https://signpath.org/">SignPath Foundation</a>, once they approve the project.</p>
     </section>
 
     <section class="install">
       <h2>Mac</h2>
-      <p>Mac downloads are signed with an Apple Developer ID and notarized by Apple once the developer account is set up. Until then, they're unsigned.</p>
+      <p>Mac downloads are signed with an Apple Developer ID (Juge Praveen, team LW385M78LW) and notarized by Apple.</p>
     </section>
 
     <section class="install">
       <h2>What gets signed</h2>
-      <p>Only builds made by the <a href="https://github.com/praveenjuge/tea-kadai/blob/main/.github/workflows/release.yml">release workflow</a> on GitHub Actions, straight from the <a href="https://github.com/praveenjuge/tea-kadai">public source code</a>. Every Windows release is approved by hand before it's signed.</p>
+      <p>Only builds made by the <a href="https://github.com/praveenjuge/tea-kadai/blob/main/.github/workflows/release.yml">release workflow</a> on GitHub Actions, straight from the <a href="https://github.com/praveenjuge/tea-kadai">public source code</a>. Once Windows signing starts, every Windows release will be approved by hand before it's signed.</p>
     </section>
 
     <section class="install">
@@ -40,8 +39,9 @@
 
     <section class="install">
       <h2>Privacy</h2>
-      <p>This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.</p>
-      <p>Tea Kadai keeps its save file and settings on your computer and doesn't connect to the internet.</p>
+      <p>Tea Kadai keeps your save file and settings on your computer.</p>
+      <p>When it starts, the version downloaded from this site checks <a href="https://github.com/praveenjuge/tea-kadai/releases">GitHub Releases</a> for a newer version and, if there is one, downloads it from there. That's an ordinary download request: it doesn't send your save, your settings or anything about you. You can turn updates off in Settings.</p>
+      <p>The Feedback button opens a new GitHub issue in your browser, filled in with the game version, your operating system and the in-game day. Nothing is sent unless you submit that issue yourself.</p>
     </section>
   </main>
 
