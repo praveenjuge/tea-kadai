@@ -84,7 +84,9 @@ func _ready() -> void:
 		note.offset_top = -28
 		add_child(note)
 
-	var version := Style.outlined("v" + str(ProjectSettings.get_setting("application/config/version", "dev")), Style.MUTED)
+	var updater := get_node_or_null("/root/Updater")
+	var running: String = updater.running_version() if updater != null else str(ProjectSettings.get_setting("application/config/version"))
+	var version := Style.outlined("v" + running, Style.MUTED)
 	version.anchor_left = 1.0
 	version.anchor_right = 1.0
 	version.anchor_top = 1.0
@@ -94,6 +96,21 @@ func _ready() -> void:
 	version.offset_top = -26
 	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	add_child(version)
+
+	# A note from the updater, like "v0.1.9 is ready: it starts next time".
+	var update_note := Style.outlined("", Style.GOOD)
+	update_note.anchor_left = 1.0
+	update_note.anchor_right = 1.0
+	update_note.anchor_top = 1.0
+	update_note.anchor_bottom = 1.0
+	update_note.offset_left = -300
+	update_note.offset_right = -12
+	update_note.offset_top = -40
+	update_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(update_note)
+	if updater != null:
+		update_note.text = updater.status
+		updater.status_changed.connect(func(text: String) -> void: update_note.text = text)
 
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.6)

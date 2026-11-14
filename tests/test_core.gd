@@ -28,6 +28,7 @@ func _init() -> void:
 	_test_first_day_is_stocked()
 	_test_clicker()
 	_test_chennai()
+	_test_updater()
 	_test_bot_plays_a_full_day()
 	_test_two_weeks()
 	if _failures == 0:
@@ -453,6 +454,14 @@ func _test_chennai() -> void:
 	_check(said.any(func(text: String) -> bool: return text.begins_with("Radio commentary")), "the radio plays cricket on match days")
 	_check(said.any(func(text: String) -> bool: return text.contains("SIX")) == (float(service.seats[0]["patience"]) > 5.0),
 		"a six gives waiting customers patience back")
+
+
+func _test_updater() -> void:
+	var updater: GDScript = load("res://scripts/boot/updater.gd")
+	_check(updater.is_newer("0.1.10", "0.1.9") and not updater.is_newer("0.1.9", "0.1.10"), "versions compare by number, not text")
+	_check(not updater.is_newer("0.1.9", "0.1.9") and updater.is_newer("1.0", "0.9.9"), "equal versions aren't newer")
+	_check(updater.engine_version().begins_with("%d." % Engine.get_version_info()["major"]), "the engine version is stamped")
+	_check(not OS.has_feature("self_update"), "running from source never updates itself")
 
 
 func _test_bot_plays_a_full_day() -> void:

@@ -10,3 +10,5 @@
 # Cloudflare CLI caches
 .cloudflare/
 .wrangler/
+# Written by CI for each release.
+/version.txt

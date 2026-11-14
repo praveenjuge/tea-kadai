@@ -92,6 +92,13 @@ static func settings_panel(settings: Settings) -> MenuOverlay:
 		settings.fullscreen = on
 		settings.apply_window())
 	overlay.add(full)
+	if OS.has_feature("self_update"):
+		var updates := CheckBox.new()
+		updates.text = "Update automatically"
+		updates.focus_mode = FOCUS_NONE
+		updates.button_pressed = settings.auto_update
+		updates.toggled.connect(func(on: bool) -> void: settings.auto_update = on)
+		overlay.add(updates)
 	overlay.add_buttons([Style.button("Done", func() -> void:
 		settings.save()
 		overlay.close())])

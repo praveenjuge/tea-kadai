@@ -95,6 +95,9 @@ jobs:
           NEXT: ${{ steps.version.outputs.next }}
         run: |
           sed -i "s/^config\/version=.*/config\/version=\"$NEXT\"/" project.godot
+          # The updater reads the version from here, since a downloaded pack
+          # can replace files but not project settings.
+          echo "$NEXT" > version.txt
           sed -i "s/^application\/short_version=.*/application\/short_version=\"$NEXT\"/" export_presets.cfg
           sed -i "s/^application\/version=.*/application\/version=\"$GITHUB_RUN_NUMBER\"/" export_presets.cfg
           sed -i "s/^application\/file_version=.*/application\/file_version=\"$NEXT.0\"/" export_presets.cfg
@@ -108,13 +111,22 @@ jobs:
         run: godot --headless --path . -s tests/test_core.gd
 
       - name: Export macOS, Windows and Linux
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
         run: |
           mkdir -p build
           godot --headless --path . --export-release "macOS" build/TeaKadai-macOS.zip
           godot --headless --path . --export-release "Windows" build/TeaKadai-Windows.exe
           godot --headless --path . --export-release "Linux" build/TeaKadai-Linux.x86_64
           tar -czf build/TeaKadai-Linux.tar.gz -C build TeaKadai-Linux.x86_64
-          for file in TeaKadai-macOS.zip TeaKadai-Windows.exe TeaKadai-Linux.tar.gz; do
+          # The game's content on its own, for the in-game updater, and a
+          # small file describing it (scripts/boot/updater.gd reads both).
+          godot --headless --path . --export-pack "Linux" build/TeaKadai.pck
+          printf '{"version": "%s", "engine": "%s.stable", "pck": "TeaKadai.pck", "size": %s, "sha256": "%s"}\n' \
+            "$NEXT" "$GODOT_VERSION" "$(stat -c %s build/TeaKadai.pck)" "$(sha256sum build/TeaKadai.pck | cut -d' ' -f1)" \
+            > build/version.json
+          cat build/version.json
+          for file in TeaKadai-macOS.zip TeaKadai-Windows.exe TeaKadai-Linux.tar.gz TeaKadai.pck version.json; do
             test -s "build/$file" || { echo "Missing build/$file"; exit 1; }
           done
           ls -la build
@@ -188,6 +200,8 @@ jobs:
             build/TeaKadai-macOS.zip
             build/TeaKadai-Windows.exe
             build/TeaKadai-Linux.tar.gz
+            build/TeaKadai.pck
+            build/version.json
           retention-days: 7
 
       - name: Publish the release
@@ -218,7 +232,8 @@ jobs:
           } > notes.md
           # Publish as a draft first, then make it the latest once every file is up.
           gh release create "$tag" --draft --target "$GITHUB_SHA" --title "Tea Kadai $tag" --notes-file notes.md \
-            build/TeaKadai-macOS.zip build/TeaKadai-Windows.exe build/TeaKadai-Linux.tar.gz
+            build/TeaKadai-macOS.zip build/TeaKadai-Windows.exe build/TeaKadai-Linux.tar.gz \
+            build/TeaKadai.pck build/version.json
           gh release edit "$tag" --draft=false --latest
 
       - name: Keep only the newest releases

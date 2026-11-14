@@ -1,6 +1,7 @@
 class_name Settings
 extends RefCounted
-## Player settings: volume for music, effects and street sounds, and fullscreen.
+## Player settings: volume for music, effects and street sounds, fullscreen,
+## and whether the game updates itself.
 ## Stored in a small config file and applied to the audio buses and window.
 
 const BUSES: Array[String] = ["Music", "Effects", "Street"]
@@ -11,6 +12,8 @@ static var path := "user://settings.cfg"
 ## Volume per bus name, from 0 to 1.
 var volume := {"Music": 0.8, "Effects": 1.0, "Street": 0.8}
 var fullscreen := false
+## Download new versions in the background (GitHub builds only).
+var auto_update := true
 
 
 static func load_saved() -> Settings:
@@ -20,6 +23,7 @@ static func load_saved() -> Settings:
 		for bus in BUSES:
 			settings.volume[bus] = clampf(float(config.get_value("audio", bus, settings.volume[bus])), 0.0, 1.0)
 		settings.fullscreen = bool(config.get_value("display", "fullscreen", false))
+		settings.auto_update = bool(config.get_value("updates", "auto", true))
 	return settings
 
 
@@ -28,6 +32,7 @@ func save() -> void:
 	for bus in BUSES:
 		config.set_value("audio", bus, volume[bus])
 	config.set_value("display", "fullscreen", fullscreen)
+	config.set_value("updates", "auto", auto_update)
 	config.save(path)
 
 
