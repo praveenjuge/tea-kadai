@@ -223,12 +223,6 @@ h1 {
 .dl.is-yours { order: -1; }
 .dl.is-yours .dl-badge { display: block; }
 
-.release {
-  margin: 28px 0 0;
-  color: var(--muted);
-  font-size: 16px;
-}
-
 .mobile-note {
   max-width: 40ch;
   margin: 16px auto 0;

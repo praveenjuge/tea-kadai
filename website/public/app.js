@@ -1,6 +1,5 @@
-// Puts the visitor's own system first, fills in the latest version and file
-// sizes from GitHub, and runs the screenshot carousel. The download links and
-// screenshots work without any of this.
+// Puts the visitor's own system first and runs the screenshot carousel. The
+// download links and screenshots work without any of this.
 
 function detectOS() {
   const ua = navigator.userAgent;
@@ -14,35 +13,10 @@ function detectOS() {
   return "unknown";
 }
 
-function formatSize(bytes) {
-  return `${Math.round(bytes / 1_000_000)} MB`;
-}
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
-
 const os = detectOS();
 const yours = document.querySelector(`.dl[data-os="${os}"]`);
 if (yours) yours.classList.add("is-yours");
 if (os === "mobile") document.getElementById("mobile-note").hidden = false;
-
-fetch("https://api.github.com/repos/praveenjuge/tea-kadai/releases/latest", {
-  headers: { Accept: "application/vnd.github+json" },
-})
-  .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
-  .then((release) => {
-    for (const asset of release.assets || []) {
-      const meta = document.querySelector(`.dl-meta[data-asset="${asset.name}"]`);
-      if (meta) meta.textContent += ` · ${formatSize(asset.size)}`;
-    }
-    const version = release.tag_name.replace(/^v/, "");
-    document.getElementById("release").textContent =
-      `Free · Version ${version} · Updated ${formatDate(release.published_at)}`;
-  })
-  .catch(() => {
-    // Rate limited or offline: the buttons still point at the latest release.
-  });
 
 // Screenshot carousel. The strip scrolls and snaps natively; the arrows,
 // dots and arrow keys move it one screenshot at a time.
