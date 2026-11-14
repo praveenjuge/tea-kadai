@@ -8,15 +8,12 @@ The App Store build is made on your Mac (Apple's packaging needs Xcode), from th
 
 A sandboxed test build of this preset has been run on this Mac and plays normally.
 
-## One-time setup
+## One-time setup (done)
 
-You already have the Apple Developer Program and an **Apple Distribution** certificate in your keychain.
-
-1. **App ID.** In [Identifiers](https://developer.apple.com/account/resources/identifiers/list), click **+** → **App IDs** → **App**. Platform macOS, description "Tea Kadai", explicit bundle ID `teakadai.praveenjuge.game`. No capabilities needed.
-2. **Installer certificate.** In [Certificates](https://developer.apple.com/account/resources/certificates/list), click **+** → **Mac Installer Distribution**. Upload a certificate request (Keychain Access → Certificate Assistant → Request a Certificate From a Certificate Authority, saved to disk), download the certificate and double-click it. It shows in your keychain as **3rd Party Mac Developer Installer: …**.
-3. **Provisioning profile.** In [Profiles](https://developer.apple.com/account/resources/profiles/list), click **+** → **Mac App Store Connect** (under Distribution), pick the `teakadai.praveenjuge.game` App ID and your Apple Distribution certificate, name it "Tea Kadai App Store", and download the `.provisionprofile`. Keep it somewhere stable, like `~/Documents/Apple/TeaKadai_AppStore.provisionprofile`.
-4. **App record.** In [App Store Connect](https://appstoreconnect.apple.com/apps), click **+** → **New App**: platform macOS, name "Tea Kadai", primary language English (UK or US), bundle ID `teakadai.praveenjuge.game`, SKU `tea-kadai`.
-5. **Transporter.** Install [Transporter](https://apps.apple.com/app/transporter/id1450874784) from the Mac App Store and sign in with your Apple ID.
+- **App ID:** `teakadai.praveenjuge.game`, registered as "Tea Kadai".
+- **Installer certificate:** "3rd Party Mac Developer Installer: Juge Praveen", in the login keychain, valid until 14 November 2027.
+- **Provisioning profile:** "Tea Kadai App Store" (Mac App Store Connect, with the Apple Distribution certificate in the keychain), saved at `~/Documents/Apple/TeaKadai_AppStore.provisionprofile`, valid until August 2027.
+- **App record:** "Tea Kadai: Chennai Chai" (plain "Tea Kadai" is taken on the App Store), Apple ID 6834836627, SKU `tea-kadai`. The listing text, category, 4+ age rating, free pricing, "Data Not Collected" privacy answers, the [privacy page](https://tea-kadai.praveenjuge.com/privacy.html) and five screenshots from `docs/app-store/` are filled in.
 
 ## Each release
 
@@ -30,7 +27,13 @@ Your team ID is the 10 characters in brackets after your name in Keychain Access
 
 The script uses the latest release tag as the version and the commit count as the build number, so each upload is higher than the last. It puts `project.godot` and `export_presets.cfg` back as they were when it's done.
 
-Then open Transporter, drag in `build/TeaKadai-AppStore.pkg` and click **Deliver**. After a few minutes the build appears under the app's **TestFlight** tab and can be added to a version for review.
+Then upload it, either by dragging `build/TeaKadai-AppStore.pkg` into the Transporter app and clicking **Deliver**, or with an App Store Connect API key:
+
+```bash
+xcrun altool --upload-package build/TeaKadai-AppStore.pkg --type macos --apple-id 6834836627 \
+  --bundle-id teakadai.praveenjuge.game --bundle-version <build> --bundle-short-version-string <version> \
+  --apiKey <key id> --apiIssuer <issuer id>
+``` After a few minutes the build appears under the app's **TestFlight** tab and can be added to a version for review.
 
 ## The store listing
 
