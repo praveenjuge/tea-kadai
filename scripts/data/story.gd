@@ -25,6 +25,7 @@ const REGULARS := {
 		"about": "Final-year engineering student. Final year, again.",
 		"patience": 60.0, "tip": 3,
 		"shirt": Color("7b4fb8"), "legs": Color("2d3a5a"), "hair": Color("1a120d"), "bag": Color("c0392b"),
+		"skin": Color("8d5a3b"), "glasses": true, "hair_style": "long",
 		"usual": {"tea": 1, "bun": 1},
 		"usual_from_day": 3,
 		## Seconds his usual order stays hidden before the bubble gives a hint.
@@ -33,17 +34,17 @@ const REGULARS := {
 		"big_tips_at": 30, "teach_at": 20, "friends_at": 40,
 		"days": {
 			1: {
-				"minute": 1000, "order": {"tea": 1, "bun": 1},
+				"minute": 430, "order": {"tea": 1, "bun": 1},
 				"arrive": "Anna, one tea. Strong-a. I'm Karthik. Final year… well, final year again.",
 				"wait": "Professor says I'm \"very creative in exams\". I think it's a compliment.",
 				"served": "Pay you tomorrow anna! …Joking, joking. Here.",
 				"hook": "Karthik mentioned \"one small arrear\". How small, you wonder.",
 			},
 			2: {
-				"minute": 990, "order": {"tea": 1, "bun": 1},
+				"minute": 445, "order": {"tea": 1, "bun": 1},
 				"arrive": "Anna! Same as yesterday. You remember, no?",
 				"ask": {
-					"q": "Anna, match tonight. Should I study or watch?",
+					"q": "Anna, big match tonight. Should I study or watch?",
 					"options": [
 						{"text": "Study, da!", "reply": "Okay okay… I'll study. During the ad breaks.", "friendship": 8},
 						{"text": "Match first!", "reply": "Correct answer! You're my kind of anna.", "friendship": 5},
@@ -53,7 +54,7 @@ const REGULARS := {
 				"hook": "Karthik left his notes on your bench. The first page just says \"HOPE\".",
 			},
 			3: {
-				"minute": 1010, "order": "usual",
+				"minute": 425, "order": "usual",
 				"arrive": "The usual, anna. You know it.",
 				"teach": "ginger_tea",
 				"wait": "My amma crushes ginger into the decoction. Try it! Customers will love it.",
@@ -61,7 +62,7 @@ const REGULARS := {
 				"hook": "Karthik's exam is on Saturday. He looked… calm? Suspiciously calm.",
 			},
 			4: {
-				"minute": 980, "order": "usual", "friends": 2,
+				"minute": 450, "order": "usual", "friends": 2,
 				"arrive": "Anna, my friends. I told them your tea is better than my future.",
 				"arrive_alone": "My friends were supposed to come. They're \"busy\". The usual, anna.",
 				"ask": {
@@ -71,11 +72,11 @@ const REGULARS := {
 						{"text": "Pay you tomorrow?", "reply": "Using my own line on me?! Respect.", "friendship": 6},
 					],
 				},
-				"served": "Library time. Don't tell anyone, it'll ruin my image.",
+				"served": "College, then library. Don't tell anyone, it'll ruin my image.",
 				"hook": "His friends swear Karthik was in the library all day. Nobody believes them.",
 			},
 			5: {
-				"minute": 1020, "order": {"tea": 2},
+				"minute": 435, "order": {"tea": 2},
 				"arrive": "Studied till 3 AM. Two teas. The strongest in Chennai.",
 				"ask": {
 					"q": "Quiz me, anna. Anything!",
@@ -95,16 +96,16 @@ const REGULARS := {
 				"hook": "Results come out tomorrow evening. The whole street is nervous for him.",
 			},
 			7: {
-				"minute": 1040, "order": "usual", "treat": true,
-				"arrive": "ANNA! PASSED! ALL CLEAR! Tea for everyone, on me!",
+				"minute": 610, "order": "usual", "treat": true,
+				"arrive": "ANNA! Results just came out! PASSED! ALL CLEAR! Tea for everyone, on me!",
 				"wait": "…Okay, on you. I'll pay tomorrow. JOKING. Here's the money!",
-				"served": "Engineer Karthik will still come here every evening. Promise.",
-				"hook": "Karthik passed! He'll be back every evening, now as an engineer who drinks too much tea.",
+				"served": "Engineer Karthik will still come here every morning. Promise.",
+				"hook": "Karthik passed! He'll be back every morning, now as an engineer who drinks too much tea.",
 			},
 		},
 		## After the first week.
 		"later": {
-			"minute": 1000, "order": "usual",
+			"minute": 440, "order": "usual",
 			"lines": [
 				"Office work is just exams that pay, anna.",
 				"My manager wants a report. I want tea.",

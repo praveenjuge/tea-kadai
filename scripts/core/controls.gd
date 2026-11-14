@@ -7,7 +7,8 @@ extends RefCounted
 ## Each action's keys. The first one is shown on buttons.
 const KEYS := {
 	"tea": [KEY_SPACE],
-	"ginger": [KEY_G],
+	"next_drink": [KEY_G],
+	"next_fry": [KEY_B],
 	"fry": [KEY_F],
 	"serve_1": [KEY_1],
 	"serve_2": [KEY_2],

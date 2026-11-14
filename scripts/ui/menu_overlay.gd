@@ -117,7 +117,7 @@ static func how_to_play() -> MenuOverlay:
 		text.add_child(Style.paragraph(step[2], 340.0, Style.TEXT))
 		row.add_child(text)
 		overlay.add(row)
-	overlay.add(Style.label("Space tea · G ginger tea · F vadai · 1 to 5 serve · P pause · M sound", Style.MUTED))
+	overlay.add(Style.label("Space tea · G next drink · F fry · B next fry · 1 to 5 serve · P pause · M sound", Style.MUTED))
 	overlay.add_buttons([Style.button("Got it", overlay.close)])
 	return overlay
 
@@ -133,6 +133,45 @@ static func credits() -> MenuOverlay:
 	]:
 		overlay.add(Style.paragraph(line[0], 300.0, line[1]))
 	overlay.add_buttons([Style.button("Back", overlay.close)])
+	return overlay
+
+
+## Today's prices, one row per menu item. Above the usual price, some
+## customers walk away; below it, you earn less per sale.
+static func prices(state: KadaiState) -> MenuOverlay:
+	var overlay := MenuOverlay.new("Today's prices", 340.0)
+	var grid := GridContainer.new()
+	grid.columns = 6
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 3)
+	for item in state.menu():
+		var title := Style.label(Catalog.MENU[item]["name"])
+		title.size_flags_horizontal = SIZE_EXPAND_FILL
+		grid.add_child(title)
+		var price := Style.label("")
+		price.custom_minimum_size.x = 30
+		price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var show := func() -> void:
+			var now := int(state.prices[item])
+			var usual := int(Catalog.MENU[item]["price"])
+			price.text = "₹%d" % now
+			price.add_theme_color_override("font_color", Style.WARN if now > usual else (Style.GOOD if now < usual else Style.TEXT))
+		for change in [-1, 1]:
+			var button := Style.button("-" if change < 0 else "+", func() -> void:
+				state.set_price(item, int(state.prices[item]) + change)
+				show.call(), true)
+			button.custom_minimum_size = Vector2(16, 14)
+			if change < 0:
+				grid.add_child(button)
+				grid.add_child(price)
+			else:
+				grid.add_child(button)
+		show.call()
+		grid.add_child(Style.label("usual ₹%d" % Catalog.MENU[item]["price"], Style.MUTED))
+		grid.add_child(Style.label("costs ₹%d" % ceili(Catalog.unit_cost(item)), Style.MUTED))
+	overlay.add(grid)
+	overlay.add(Style.paragraph("Above the usual price, some customers walk away.", 320.0, Style.MUTED))
+	overlay.add_buttons([Style.button("Done", overlay.close)])
 	return overlay
 
 

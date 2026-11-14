@@ -8,6 +8,7 @@ const ASK_SECONDS := 25.0
 const WIDTH := 140.0
 const PAD := 4.0
 const CHIP_H := 14.0
+const PORTRAIT := 24.0
 
 var _view: StreetView
 ## Each: {"seat", "text", "t", "life", "options": Array, "chips": Array[Rect2]}.
@@ -18,14 +19,15 @@ func _init(view: StreetView) -> void:
 	_view = view
 
 
-func say(seat: int, text: String) -> void:
+## "look" is a regular's look for a portrait, or empty for none.
+func say(seat: int, text: String, look: Dictionary = {}) -> void:
 	_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["seat"] != seat or not b["options"].is_empty())
-	_bubbles.append({"seat": seat, "text": text, "t": 0.0, "life": SAY_SECONDS, "options": [], "chips": []})
+	_bubbles.append({"seat": seat, "text": text, "t": 0.0, "life": SAY_SECONDS, "options": [], "chips": [], "look": look})
 
 
-func ask(seat: int, question: String, options: Array) -> void:
+func ask(seat: int, question: String, options: Array, look: Dictionary = {}) -> void:
 	clear(seat)
-	_bubbles.append({"seat": seat, "text": question, "t": 0.0, "life": ASK_SECONDS, "options": options, "chips": []})
+	_bubbles.append({"seat": seat, "text": question, "t": 0.0, "life": ASK_SECONDS, "options": options, "chips": [], "look": look})
 
 
 func clear(seat: int) -> void:
@@ -87,9 +89,12 @@ func _place(rect: Rect2, taken: Array[Rect2]) -> Rect2:
 func _draw_bubble(bubble: Dictionary, font: Font, taken: Array[Rect2]) -> Rect2:
 	var text: String = bubble["text"]
 	var options: Array = bubble["options"]
+	var look: Dictionary = bubble.get("look", {})
+	var face := PORTRAIT + PAD if not look.is_empty() else 0.0
 	var size := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, WIDTH, Style.FONT_SIZE)
+	size.y = maxf(size.y, PORTRAIT if face > 0.0 else 0.0)
 	var height := size.y + PAD * 2.0 + options.size() * (CHIP_H + 3.0)
-	var width := maxf(size.x, 60.0) + PAD * 2.0
+	var width := maxf(size.x, 60.0) + PAD * 2.0 + face
 	var head := _view.seat_point(bubble["seat"])
 	# Sit to the left of the head; flip to the right near the left edge.
 	var x := head.x - 12.0 - width
@@ -109,9 +114,11 @@ func _draw_bubble(bubble: Dictionary, font: Font, taken: Array[Rect2]) -> Rect2:
 	_view.draw_colored_polygon(PackedVector2Array([
 		Vector2(tail_x, tail_y - 3) - head, Vector2(tail_x, tail_y + 3) - head,
 		Vector2(tail_x + 6.0 * tail_dir, tail_y) - head]), paper)
-	_view.draw_multiline_string(font, local.position + Vector2(PAD, PAD + 9), text, HORIZONTAL_ALIGNMENT_LEFT,
+	_view.draw_multiline_string(font, local.position + Vector2(PAD + face, PAD + 9), text, HORIZONTAL_ALIGNMENT_LEFT,
 		WIDTH, Style.FONT_SIZE, -1, Color(Style.INK, fade))
 	_view.draw_set_transform(Vector2.ZERO)
+	if face > 0.0 and pop >= 1.0:
+		Style.draw_portrait(_view, look, Rect2(rect.position + Vector2(PAD, PAD), Vector2(PORTRAIT, PORTRAIT)), fade)
 	var chips: Array[Rect2] = []
 	for i in options.size():
 		var chip := Rect2(rect.position.x + PAD, rect.position.y + PAD + size.y + 3.0 + i * (CHIP_H + 3.0),

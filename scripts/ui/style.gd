@@ -174,9 +174,36 @@ static func rupees(amount: int) -> String:
 	return ("-₹%d" % -amount) if amount < 0 else ("₹%d" % amount)
 
 
+## The colour of a drink in the glass.
+static func drink_color(kind: String) -> Color:
+	match kind:
+		"lemon_tea":
+			return Color("c98a2a")
+		"filter_coffee":
+			return Color("8a5a36")
+	return TEA
+
+
 ## Draws a small icon for a menu item centred on "at".
 static func draw_item(canvas: CanvasItem, item: String, at: Vector2, quality: float = 1.0) -> void:
 	match item:
+		"lemon_tea":
+			var glass := PackedVector2Array([at + Vector2(-3, -5), at + Vector2(3, -5), at + Vector2(2, 5), at + Vector2(-2, 5)])
+			canvas.draw_colored_polygon(glass, GLASS)
+			canvas.draw_rect(Rect2(at + Vector2(-2.5, -3), Vector2(5, 8)), drink_color(item))
+			canvas.draw_circle(at + Vector2(3, -5), 2.0, Color("e8d23c"))
+		"filter_coffee":
+			canvas.draw_rect(Rect2(at + Vector2(-4, 2), Vector2(8, 3)), Color("aab2bb"))
+			canvas.draw_rect(Rect2(at + Vector2(-2.5, -5), Vector2(5, 8)), Color("c9ced6"))
+			canvas.draw_rect(Rect2(at + Vector2(-2, -5), Vector2(4, 2)), Color("d9b48a"))
+		"bajji":
+			var bajji := VADAI_GOLDEN if quality >= 0.7 else VADAI_RAW.darkened(0.15)
+			canvas.draw_rect(Rect2(at + Vector2(-5, -2), Vector2(10, 5)), bajji)
+			canvas.draw_rect(Rect2(at + Vector2(-4, -3), Vector2(8, 1)), bajji.lightened(0.15))
+			canvas.draw_rect(Rect2(at + Vector2(4, -1), Vector2(2, 2)), Color("3a8a3a"))
+		"samosa":
+			canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -5), at + Vector2(5, 4), at + Vector2(-5, 4)]), Color("d9a050"))
+			canvas.draw_line(at + Vector2(0, -5), at + Vector2(0, 4), Color("b8803a"), 1.0)
 		"tea", "ginger_tea":
 			var glass := PackedVector2Array([at + Vector2(-3, -5), at + Vector2(3, -5), at + Vector2(2, 5), at + Vector2(-2, 5)])
 			canvas.draw_colored_polygon(glass, GLASS)
@@ -241,3 +268,77 @@ static func draw_symbol(canvas: CanvasItem, symbol: String, at: Vector2, scale: 
 		_:
 			draw_item(canvas, symbol, o)
 	canvas.draw_set_transform(Vector2.ZERO)
+
+
+## A front-facing head with a face, its chin at the origin. "look" can have
+## skin, hair, hair_style (short, bald, bun, long), mustache, glasses, hat
+## and flowers. Callers set a transform to place and scale it.
+static func draw_head(canvas: CanvasItem, look: Dictionary, alpha: float = 1.0) -> void:
+	var skin: Color = look.get("skin", SKIN)
+	var hair: Color = look.get("hair", Color("1e1612"))
+	var style: String = look.get("hair_style", "short")
+	var dark := Color(0.1, 0.07, 0.05, alpha)
+	canvas.draw_rect(Rect2(-4, -8, 8, 8), Color(skin, alpha))
+	canvas.draw_rect(Rect2(-5, -5, 1, 2), Color(skin.darkened(0.1), alpha))
+	canvas.draw_rect(Rect2(4, -5, 1, 2), Color(skin.darkened(0.1), alpha))
+	match style:
+		"bald":
+			canvas.draw_rect(Rect2(-4, -6, 1, 3), Color(hair, alpha))
+			canvas.draw_rect(Rect2(3, -6, 1, 3), Color(hair, alpha))
+		"bun":
+			canvas.draw_rect(Rect2(-4, -9, 8, 3), Color(hair, alpha))
+			canvas.draw_rect(Rect2(-2, -11, 4, 2), Color(hair, alpha))
+		"long":
+			canvas.draw_rect(Rect2(-4, -9, 8, 3), Color(hair, alpha))
+			canvas.draw_rect(Rect2(-5, -8, 1, 8), Color(hair, alpha))
+			canvas.draw_rect(Rect2(4, -8, 1, 8), Color(hair, alpha))
+		_:
+			canvas.draw_rect(Rect2(-4, -9, 8, 3), Color(hair, alpha))
+			canvas.draw_rect(Rect2(-4, -7, 1, 1), Color(hair, alpha))
+	canvas.draw_rect(Rect2(-3, -5, 1, 1), dark)
+	canvas.draw_rect(Rect2(2, -5, 1, 1), dark)
+	if look.get("glasses", false):
+		canvas.draw_rect(Rect2(-4, -6, 3, 3), Color(0.1, 0.1, 0.1, alpha), false, 1.0)
+		canvas.draw_rect(Rect2(1, -6, 3, 3), Color(0.1, 0.1, 0.1, alpha), false, 1.0)
+	if look.get("mustache", false):
+		canvas.draw_rect(Rect2(-2, -3, 4, 1), Color(hair.darkened(0.2), alpha))
+	else:
+		canvas.draw_rect(Rect2(-1, -2, 2, 1), Color(skin.darkened(0.35), alpha))
+	if look.has("hat"):
+		var hat: Color = look["hat"]
+		canvas.draw_rect(Rect2(-5, -11, 10, 4), Color(hat, alpha))
+		canvas.draw_rect(Rect2(-6, -8, 12, 1), Color(hat.darkened(0.2), alpha))
+	if look.get("flowers", false):
+		for dot in [Vector2(-4, -10), Vector2(-3, -11), Vector2(3, -10)]:
+			canvas.draw_rect(Rect2(dot, Vector2(1, 1)), Color(1, 1, 1, alpha))
+
+
+## A face portrait in a small framed square, for speech bubbles.
+static func draw_portrait(canvas: CanvasItem, look: Dictionary, rect: Rect2, alpha: float = 1.0) -> void:
+	canvas.draw_rect(rect, Color(look.get("shirt", ACCENT).darkened(0.35), alpha))
+	var scale := rect.size.y / 14.0
+	canvas.draw_set_transform(rect.position + Vector2(rect.size.x / 2.0, rect.size.y - scale), 0.0, Vector2(scale, scale))
+	canvas.draw_rect(Rect2(-5, -1, 10, 2), Color(look.get("shirt", ACCENT), alpha))
+	canvas.draw_set_transform(rect.position + Vector2(rect.size.x / 2.0, rect.size.y - scale * 1.5), 0.0, Vector2(scale, scale))
+	draw_head(canvas, look, alpha)
+	canvas.draw_set_transform(Vector2.ZERO)
+	canvas.draw_rect(rect, Color(WOOD_EDGE, alpha), false, 1.0)
+
+
+## One weekly goal with a progress bar, for the morning and night screens.
+static func goal_row(goal: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var done: bool = goal["done"]
+	var text := label(str(goal["text"]) + (" · done!" if done else ""), GOOD if done else TEXT)
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(text)
+	var bar := Control.new()
+	bar.custom_minimum_size = Vector2(50, 6)
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var fraction := clampf(float(goal["value"]) / float(goal["target"]), 0.0, 1.0)
+	bar.draw.connect(func() -> void:
+		bar.draw_rect(Rect2(Vector2.ZERO, bar.size), PANEL_DARK)
+		bar.draw_rect(Rect2(Vector2.ZERO, Vector2(bar.size.x * fraction, bar.size.y)), GOOD if done else ACCENT))
+	row.add_child(bar)
+	return row

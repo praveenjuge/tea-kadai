@@ -192,14 +192,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		_service.tea_release()
 	elif event.is_action_pressed("tea"):
 		_service.tea_press()
-	elif event.is_action_pressed("ginger"):
-		_service.set_tea_kind("tea" if _service.tea_kind == "ginger_tea" else "ginger_tea")
+	elif event.is_action_pressed("next_drink"):
+		_service.set_tea_kind(_next_of(_service.drinks(), _service.tea_kind))
+	elif event.is_action_pressed("next_fry"):
+		_service.set_fry_kind(_next_of(_service.fries(), _service.fry_kind))
 	elif event.is_action_pressed("fry"):
 		_service.fry_press()
 	else:
 		for i in _service.seats.size():
 			if event.is_action_pressed("serve_%d" % (i + 1)):
 				_service.serve(i)
+
+
+static func _next_of(items: Array[String], current: String) -> String:
+	return items[(items.find(current) + 1) % items.size()]
 
 
 func _toggle_pause() -> void:

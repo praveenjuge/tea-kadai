@@ -1,12 +1,13 @@
 class_name FryerPanel
 extends PanelContainer
-## The vadai kadai: fry a batch, lift it out when golden. One button does both,
-## and clicking the kadai itself does the same.
+## The kadai: fry a batch of vadai or bajji, lift it out when golden. One
+## button does both, and clicking the kadai itself does the same.
 
 var _service: Service
 var _art: FryerArt
 var _button: Button
 var _stock: Label
+var _kinds := {}
 
 
 func _init(service: Service) -> void:
@@ -19,7 +20,16 @@ func _ready() -> void:
 	add_child(box)
 
 	var head := HBoxContainer.new()
-	head.add_child(Style.label("Vadai", Style.ACCENT))
+	head.add_theme_constant_override("separation", 3)
+	var fries := _service.fries()
+	if fries.size() == 1:
+		head.add_child(Style.label("Vadai", Style.ACCENT))
+	else:
+		for kind in fries:
+			var pick := Style.button(Catalog.MENU[kind]["name"], _service.set_fry_kind.bind(kind), true)
+			pick.custom_minimum_size.y = 14
+			head.add_child(pick)
+			_kinds[kind] = pick
 	_stock = Style.label("", Style.MUTED)
 	_stock.size_flags_horizontal = SIZE_EXPAND_FILL
 	_stock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -38,9 +48,15 @@ func _ready() -> void:
 
 
 func refresh() -> void:
-	_stock.text = "%d left" % _service.state.how_many("vadai")
-	_button.text = "%s  [%s]" % [_service.fry_action_text(), Controls.hint("fry")]
-	_button.disabled = _service.fryer.is_empty() and _service.fry_action_text() == "Fry vadai"
+	_stock.text = "%d left" % _service.state.how_many(_service.fry_kind)
+	var action := _service.fry_action_text()
+	_button.text = "%s  [%s]" % [action, Controls.hint("fry")]
+	_button.disabled = not _service.can_fry_press()
+	for kind in _kinds:
+		var pick: Button = _kinds[kind]
+		var look := "Button" if kind == _service.fry_kind else "QuietButton"
+		if pick.theme_type_variation != look:
+			pick.theme_type_variation = look
 	_art.queue_redraw()
 
 
@@ -77,11 +93,14 @@ class FryerArt extends Control:
 		var color := _vadai_color(fryer.cook_level())
 		for i in fryer.count:
 			var at := center + SPOTS[i]
-			draw_circle(at, VADAI_R, color)
-			draw_circle(at, 2.5, Color("8a5a1f"))
+			if fryer.kind == "bajji":
+				_ellipse(at, VADAI_R + 3.0, VADAI_R - 3.0, color)
+			else:
+				draw_circle(at, VADAI_R, color)
+				draw_circle(at, 2.5, Color("8a5a1f"))
 			if done == Fryer.Doneness.GOLDEN:
 				draw_arc(at, VADAI_R + 2.0, 0, TAU, 20, Style.GOOD, 1.5)
-		var progress := clampf(fryer.time / Fryer.GOLDEN_AT, 0.0, 1.0)
+		var progress := clampf(fryer.time / fryer.golden_at(), 0.0, 1.0)
 		if done == Fryer.Doneness.RAW:
 			draw_rect(Rect2(center.x - 30, size.y - 5, 60, 3), Color(0, 0, 0, 0.4))
 			draw_rect(Rect2(center.x - 30, size.y - 5, 60 * progress, 3), Style.VADAI_GOLDEN)

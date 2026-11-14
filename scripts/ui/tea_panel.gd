@@ -1,12 +1,15 @@
 class_name TeaPanel
 extends PanelContainer
-## The tea station: one button to make a glass, then hold it to pour.
+## The tea station: one button to make a glass, then hold it to pour. Once
+## more drinks are on the menu, small switches pick the next one.
 
 var _service: Service
 var _art: TeaArt
 var _button: Button
 var _stock: Label
 var _kinds := {}
+var _head: HBoxContainer
+var _drinks: Array[String] = []
 
 
 func _init(service: Service) -> void:
@@ -18,22 +21,10 @@ func _ready() -> void:
 	var box := VBoxContainer.new()
 	add_child(box)
 
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 4)
-	head.add_child(Style.label("Tea", Style.ACCENT))
-	# Once ginger tea is learned, pick which tea the next glass will be.
-	if _service.state.menu().has("ginger_tea"):
-		for kind in Catalog.GLASSES:
-			var text := "Plain" if kind == "tea" else "Ginger [%s]" % Controls.hint("ginger")
-			var pick := Style.button(text, _service.set_tea_kind.bind(kind), true)
-			pick.custom_minimum_size.y = 14
-			head.add_child(pick)
-			_kinds[kind] = pick
-	_stock = Style.label("", Style.MUTED)
-	_stock.size_flags_horizontal = SIZE_EXPAND_FILL
-	_stock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	head.add_child(_stock)
-	box.add_child(head)
+	_head = HBoxContainer.new()
+	_head.add_theme_constant_override("separation", 3)
+	box.add_child(_head)
+	_build_head()
 
 	_art = TeaArt.new(_service.tea)
 	_art.custom_minimum_size = Vector2(0, 70)
@@ -49,14 +40,43 @@ func _ready() -> void:
 	box.add_child(_button)
 
 
+## The title, or one switch per drink once there's more than one, plus how
+## many of the chosen drink are left. Rebuilt when a drink is learned mid-day.
+func _build_head() -> void:
+	for child in _head.get_children():
+		child.queue_free()
+	_kinds.clear()
+	_drinks = _service.drinks()
+	if _drinks.size() == 1:
+		_head.add_child(Style.label("Tea", Style.ACCENT))
+	else:
+		for kind in _drinks:
+			var short: String = Catalog.MENU[kind].get("short", Catalog.MENU[kind]["name"])
+			var text := short.replace(" tea", "").replace("Tea", "Plain")
+			var pick := Style.button(text, _service.set_tea_kind.bind(kind), true)
+			pick.custom_minimum_size.y = 14
+			_head.add_child(pick)
+			_kinds[kind] = pick
+	_stock = Style.label("", Style.MUTED)
+	_stock.size_flags_horizontal = SIZE_EXPAND_FILL
+	_stock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_stock.clip_text = true
+	_head.add_child(_stock)
+
+
 func refresh() -> void:
+	if _service.drinks() != _drinks:
+		_build_head()
 	var tea := _service.tea
 	_button.text = "%s  [%s]" % [tea.action_text(), Controls.hint("tea")]
 	_button.disabled = tea.stage == TeaStation.Stage.FILLING
-	_stock.text = "%d left" % _service.state.how_many(_service.tea_kind)
+	var left := _service.state.how_many(_service.tea_kind)
+	_stock.text = ("%d left" % left) if _drinks.size() < 4 else "×%d" % left
 	for kind in _kinds:
 		var pick: Button = _kinds[kind]
-		pick.theme_type_variation = "Button" if kind == _service.tea_kind else "QuietButton"
+		var look := "Button" if kind == _service.tea_kind else "QuietButton"
+		if pick.theme_type_variation != look:
+			pick.theme_type_variation = look
 	_art.queue_redraw()
 
 
@@ -105,7 +125,10 @@ class TeaArt extends Control:
 			return
 		draw_colored_polygon(outline, Style.GLASS)
 		var fill_h := (height - 4) * 0.8 * tea.fill_progress()
-		draw_rect(Rect2(base.x - 8, base.y - fill_h, 16, fill_h), Style.TEA)
+		draw_rect(Rect2(base.x - 8, base.y - fill_h, 16, fill_h), Style.drink_color(tea.kind))
+		if tea.kind == "lemon_tea" and tea.fill_progress() >= 1.0:
+			draw_circle(Vector2(base.x + 9, top + 4), 4.0, Color("e8d23c"))
+			draw_circle(Vector2(base.x + 9, top + 4), 2.5, Color("f4eb8a"))
 		if tea.stage == TeaStation.Stage.POURING:
 			_draw_pour(base, top)
 
@@ -113,7 +136,7 @@ class TeaArt extends Control:
 		var lowest := glass_top - 4.0
 		var highest := 4.0
 		var y := lerpf(lowest, highest, tea.pour_height)
-		draw_line(Vector2(base.x + 1, y + 6), Vector2(base.x + 1, glass_top + 6), Style.TEA, 2.0)
+		draw_line(Vector2(base.x + 1, y + 6), Vector2(base.x + 1, glass_top + 6), Style.drink_color(tea.kind), 2.0)
 		draw_rect(Rect2(base.x - 7, y - 4, 16, 10), Color("c9ced6"))
 		draw_rect(Rect2(base.x - 8, y - 5, 18, 2), Color("e6eaf0"))
 		var froth := int(tea.pour_height * 5.0)

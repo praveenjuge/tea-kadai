@@ -52,6 +52,12 @@ func _title() -> void:
 	await _frames(3)
 	_check(_main._overlays.get_child_count() == 0, "Escape closes the settings")
 	_click(_find_button(screen, "New game"))
+	await _wait_for(IntroScreen)
+	_check(_main._screen is IntroScreen, "a new game starts with the opening story")
+	for i in IntroScreen.CARDS.size() - 1:
+		_click(_find_button(_main._screen, "Next"))
+		await _frames(3)
+	_click(_find_button(_main._screen, "Open the kadai"))
 	await _wait_for(MorningScreen)
 
 
@@ -75,6 +81,16 @@ func _morning() -> void:
 	_click_at(market.global_position + Rect2(market._tiles["bun"]["rect"]).get_center())
 	await _frames(2)
 	_check(state.how_many("vadai") > 0, "batter and oil make vadai stock")
+	_click(_find_button(screen, "Prices"))
+	await _frames(3)
+	_check(_main._overlays.get_child_count() == 1, "Prices opens its own panel")
+	var tea_price := int(state.prices["tea"])
+	_click(_find_button(_main._overlays.get_child(0), "+"))
+	await _frames(2)
+	_check(int(state.prices["tea"]) == tea_price + 1, "the + button raises a price")
+	_click(_find_button(_main._overlays.get_child(0), "-"))
+	_tap(KEY_ESCAPE)
+	await _frames(3)
 	_click(_find_button(screen, "Open the kadai"))
 	await _wait_for(ServiceScreen)
 
@@ -85,6 +101,8 @@ func _service() -> void:
 	var service: Service = screen._service
 	var state: KadaiState = _main.state
 	var sound: SoundBoard = _main.sound
+	var said := [0]
+	service.said.connect(func(_seat: int, _text: String) -> void: said[0] += 1)
 	await _frames(30)
 	_check(sound._loops["street_loop"].playing, "street sounds play during service")
 	_check(sound._loops["music_day"].playing, "day music plays in the morning")
@@ -161,21 +179,14 @@ func _service() -> void:
 	_check(int(state.today["served"]) >= SERVE_GOAL, "served %d customers by clicking them" % state.today["served"])
 	_check(int(state.today["revenue"]) > 0, "serving earns money")
 
-	# Play on faster until Karthik arrives, then serve him.
-	Engine.time_scale = 8.0
+	# Karthik comes on his way to college; keep playing until he's served.
 	guard = 0
-	while not service.regular.is_here() and not service.closed and guard < 20000:
+	while not service.regular.done and not service.closed and guard < 20000:
 		guard += 1
 		await _play_turn(screen, service)
-	Engine.time_scale = 1.0
-	_check(service.regular.is_here(), "Karthik comes to the counter in the evening")
-	await _frames(5)
-	_check(screen._street._speech._bubbles.size() > 0, "Karthik says something in a speech bubble")
-	guard = 0
-	while not service.regular.done and guard < 6000:
-		guard += 1
-		await _play_turn(screen, service)
-	_check(state.today["met"].has("karthik"), "Karthik was served today")
+	_check(said[0] > 0, "Karthik says something in a speech bubble")
+	_check(state.today["met"].has("karthik"), "Karthik comes in the morning and gets served")
+	_check(state.reputation > 0, "serving customers earns reputation")
 	_check(int(state.regular("karthik")["friendship"]) > 0, "serving Karthik builds friendship")
 
 	# Fast forward to closing time.
@@ -196,7 +207,12 @@ func _night() -> void:
 	# The tally counts up over a couple of seconds before the stars show.
 	await create_timer(3.5).timeout
 	_check(screen._stars_shown >= 1, "the night tally gives the day stars")
-	_check(screen._upgrades.size() == Catalog.UPGRADES.size(), "the night screen offers every upgrade")
+	var buyable := 0
+	for id in Catalog.UPGRADE_ORDER:
+		if not _main.state.has_upgrade(id) and int(Catalog.UPGRADES[id]["level"]) <= _main.state.level():
+			buyable += 1
+	_check(screen._upgrades.size() == mini(buyable, NightScreen.UPGRADES_SHOWN),
+		"the night screen offers the upgrades for sale at this level")
 	_click(_find_button(screen, "Plan tomorrow"))
 	await _wait_for(MorningScreen)
 	_check(_main._screen is MorningScreen and _main.state.day == 2, "next morning is day 2")

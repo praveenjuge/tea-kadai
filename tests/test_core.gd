@@ -21,6 +21,10 @@ func _init() -> void:
 	_test_karthik()
 	_test_upgrades_and_saving()
 	_test_rain_is_fixed_per_day()
+	_test_levels_and_menu()
+	_test_week_goals()
+	_test_bajji()
+	_test_first_day_is_stocked()
 	_test_bot_plays_a_full_day()
 	if _failures == 0:
 		print("All core checks passed.")
@@ -112,13 +116,13 @@ func _test_fryer() -> void:
 	service.fry_press()
 	_check(service.fryer.count == Fryer.BATCH, "one press fries a batch of %d" % Fryer.BATCH)
 	_check(int(state.stock["batter"]) == batter - Fryer.BATCH, "the batch uses batter for each vadai")
-	service.fryer.update(Fryer.GOLDEN_AT + 0.5)
+	service.fryer.update(Catalog.FRY_TIMES["vadai"].x + 0.5)
 	_check(service.fryer.doneness() == Fryer.Doneness.GOLDEN, "the batch turns golden")
 	service.fry_press()
 	_check(service.fryer.is_empty(), "the second press lifts the batch out")
 	_check(service.ready_count("vadai") == Fryer.BATCH, "golden vadai wait warm on the plate")
 	service.fry_press()
-	service.fryer.update(Fryer.BURNT_AT + 1.0)
+	service.fryer.update(Catalog.FRY_TIMES["vadai"].y + 1.0)
 	service.fry_press()
 	_check(service.ready_count("vadai") == Fryer.BATCH and int(state.today["wasted"]) == Fryer.BATCH,
 		"a burnt batch is thrown away")
@@ -267,6 +271,59 @@ func _test_rain_is_fixed_per_day() -> void:
 	_check(rainy >= 5 and rainy <= 16, "it rains on about a third of days, got %d of 30" % rainy)
 
 
+func _test_levels_and_menu() -> void:
+	var state := KadaiState.new()
+	_check(state.level() == 1 and not state.menu().has("lemon_tea"), "a new kadai is level 1 with the basic menu")
+	var service := Service.new(state, 21)
+	for i in 300:
+		var order := service._make_order(Catalog.CUSTOMERS[Catalog.CUSTOMERS.keys()[i % Catalog.CUSTOMERS.size()]])
+		for item in order:
+			if not state.menu().has(item):
+				_check(false, "customers only order what's on the menu, got " + item)
+				return
+	state.add_points(Catalog.LEVEL_POINTS[1])
+	_check(state.level() == 2 and state.menu().has("lemon_tea"), "level 2 puts lemon tea on the menu")
+	_check(state.today["level_ups"] == [2], "the level up is noted for the night screen")
+	state.add_points(Catalog.LEVEL_POINTS[4])
+	for item in ["bajji", "filter_coffee", "samosa"]:
+		_check(state.menu().has(item), "%s unlocks by level 5" % item)
+	_check(state.level_progress() >= 0.0 and state.level_progress() <= 1.0, "level progress stays between 0 and 1")
+
+
+func _test_week_goals() -> void:
+	var state := KadaiState.new()
+	var goals := state.week_goals()
+	_check(goals.size() == 3, "each week has three goals")
+	state.week["served"] = int(goals[0]["target"])
+	var money := state.money
+	var claimed := state.claim_goals()
+	_check(claimed.size() == 1 and state.money == money + Catalog.GOAL_REWARD, "reaching a goal pays a reward")
+	_check(state.claim_goals().is_empty(), "a goal pays only once")
+	for i in 7:
+		state.next_day()
+	_check(state.day == 8 and int(state.week["served"]) == 0 and state.week["done"].is_empty(), "a new week starts fresh")
+	_check(int(state.week_goals()[0]["target"]) > int(goals[0]["target"]), "week 2 goals are a bit bigger")
+
+
+func _test_bajji() -> void:
+	var state := KadaiState.new()
+	state.reputation = Catalog.LEVEL_POINTS[2]
+	state.buy("besan")
+	var service := Service.new(state, 4)
+	service.set_fry_kind("bajji")
+	service.fry_press()
+	_check(service.fryer.kind == "bajji" and service.fryer.count == Fryer.BATCH, "bajji fry in a batch too")
+	service.fryer.update(Catalog.FRY_TIMES["bajji"].x + 0.1)
+	service.fry_press()
+	_check(service.ready_count("bajji") == Fryer.BATCH and service.ready_count("vadai") == 0, "golden bajji land on the plate as bajji")
+
+
+func _test_first_day_is_stocked() -> void:
+	var state := KadaiState.new()
+	for item in state.menu():
+		_check(state.how_many(item) >= 6, "a new kadai can make %s without shopping" % item)
+
+
 ## A simple bot plays a whole day. Checks that the loop runs to the end and a
 ## careful player can make money.
 func _test_bot_plays_a_full_day() -> void:
@@ -285,7 +342,7 @@ func _test_bot_plays_a_full_day() -> void:
 		_bot_turn(service)
 		service.update(step)
 	_check(ended[0], "the day ends")
-	_check(int(state.today["served"]) >= 25, "bot serves at least 25 customers, served %d" % state.today["served"])
+	_check(int(state.today["served"]) >= 15, "bot serves at least 15 customers on a short first day, served %d" % state.today["served"])
 	_check(state.profit_today() > 0, "bot makes a profit, made %d" % state.profit_today())
 	print("Bot day: served %d, waited long %d, out of stock %d, no seat %d, profit Rs %d" % [
 		state.today["served"], state.today["waited_long"], state.today["out_of_stock"],

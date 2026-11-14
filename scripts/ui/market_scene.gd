@@ -6,7 +6,7 @@ extends Control
 signal bought(stock_id: String)
 signal returned(stock_id: String)
 
-const TILE := Vector2(50, 66)
+const TILE := Vector2(46, 66)
 ## How tall a stall is drawn; extra space is split above and below.
 const STALL_H := 124.0
 const STALL_GAP := 10.0
@@ -14,9 +14,10 @@ const AWNING_H := 20.0
 
 ## Each stall: its sign, awning colour, and goods.
 const STALLS := [
-	{"name": "Milk & tea", "awning": Color("c0392b"), "goods": ["milk", "tea_powder", "sugar", "ginger"]},
-	{"name": "Oil & batter", "awning": Color("3a8a3a"), "goods": ["batter", "oil"]},
-	{"name": "Bakery", "awning": Color("2f6db5"), "goods": ["biscuit", "bun"]},
+	{"name": "Milk & tea", "awning": Color("c0392b"),
+		"goods": ["milk", "tea_powder", "sugar", "ginger", "lemon", "coffee_powder"]},
+	{"name": "Oil & batter", "awning": Color("3a8a3a"), "goods": ["batter", "besan", "oil"]},
+	{"name": "Bakery", "awning": Color("2f6db5"), "goods": ["biscuit", "bun", "samosa"]},
 ]
 
 var _state: KadaiState
@@ -186,3 +187,18 @@ func _draw_goods(stock_id: String) -> void:
 		"bun":
 			Style.draw_item(self, "bun", Vector2(-2, 1))
 			Style.draw_item(self, "bun", Vector2(2, -1))
+		"lemon":
+			for spot in [Vector2(-3, 2), Vector2(2, 2), Vector2(0, -2)]:
+				draw_circle(spot, 2.8, Color("e8d23c"))
+				draw_rect(Rect2(spot + Vector2(-1, -1), Vector2(1, 1)), Color("f4eb8a"))
+		"coffee_powder":
+			draw_rect(Rect2(-4, -6, 8, 11), Color("5a3a22"))
+			draw_rect(Rect2(-3, -3, 6, 4), Color("e8c547"))
+			draw_rect(Rect2(-1, -2, 2, 2), Color("5a3a22"))
+		"besan":
+			draw_rect(Rect2(-5, -3, 10, 8), Color("b8bec6"))
+			draw_rect(Rect2(-5, -4, 10, 2), Color("e8c56a"))
+			draw_rect(Rect2(2, -6, 2, 2), Color("3a8a3a"))
+		"samosa":
+			Style.draw_item(self, "samosa", Vector2(-2, 1))
+			Style.draw_item(self, "samosa", Vector2(3, -1))

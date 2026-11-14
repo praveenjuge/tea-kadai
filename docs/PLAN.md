@@ -180,6 +180,21 @@ After the calm-down pass.
 
 All of the above is built.
 
+## Playtest 3 notes and round 4 (2026-11-14)
+
+Played, restarted a few times. Liked the title and menus, the market stalls and the street life. Stopped because the loop felt the same all day and the day was too long. Also: the story came too late, the art looked too simple, there was no sense of progress, and new players don't know to stock up on day 1.
+
+Built in response:
+
+- **Five-minute days**, with Karthik coming in the morning on his way to college.
+- **An opening story:** you quit a dull IT job to open a tea stall.
+- **Plenty of stock on day 1**, and a "Running low" note in the mornings.
+- **Kadai level:** reputation from happy customers. Each level puts something new on the menu for free: lemon tea (2), bajji (3), filter coffee (4), samosa (5). Lemon tea and coffee share the tea station; bajji shares the kadai.
+- **Three weekly goals** (customers, perfect pours, sales) with a reward each.
+- **Visible growth to buy at night**, unlocked by level: fresh paint and a proper sign (the stall starts faded with a cardboard sign), plants and string lights, a radio with posters, a bigger counter with a second stove.
+- **Faces:** bigger front-facing customers with eyes, hair styles, mustaches, glasses, sarees and helmets; two new customer types (a nurse and a flower seller); varied passers-by; face portraits beside regulars' speech.
+- **Prices** moved into their own panel.
+
 ## Next up
 
 In order:

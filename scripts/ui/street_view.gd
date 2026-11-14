@@ -16,6 +16,8 @@ const SEAT_TILES: Array[Vector2] = [Vector2(1.9, 2.9), Vector2(3.4, 2.9), Vector
 const ROAD_EDGE_Y := 6.6
 const WALK_SECONDS := 0.7
 const LEAVE_SECONDS := 1.6
+## Customers are drawn a little larger than passers-by so their faces read.
+const CUSTOMER_SCALE := 1.25
 
 const WALL := Color("6aa39a")
 const PAVEMENT := Color("b9a58a")
@@ -54,16 +56,24 @@ func on_arrived(seat: int) -> void:
 
 
 func say(seat: int, text: String) -> void:
-	_speech.say(seat, text)
+	_speech.say(seat, text, _portrait_for(seat))
 
 
 func ask(seat: int, question: String, options: Array) -> void:
-	_speech.ask(seat, question, options)
+	_speech.ask(seat, question, options, _portrait_for(seat))
+
+
+## A regular's look, for a portrait beside what they say. Empty for others.
+func _portrait_for(seat: int) -> Dictionary:
+	var customer = _service.seats[seat]
+	if customer != null and customer.has("regular"):
+		return Story.REGULARS[customer["regular"]]
+	return {}
 
 
 ## Where a seated customer's head is, in this view's coordinates.
 func seat_point(seat: int) -> Vector2:
-	return _iso(SEAT_TILES[seat], 22.0)
+	return _iso(SEAT_TILES[seat], 28.0)
 
 
 func service() -> Service:
@@ -129,7 +139,7 @@ func _seat_at(point: Vector2) -> int:
 			items += int(order[item])
 		if _service.seats[seat].get("usual_hidden", false):
 			items = 2
-		var body := Rect2(feet + Vector2(-10, -32), Vector2(20, 34))
+		var body := Rect2(feet + Vector2(-12, -44), Vector2(24, 46))
 		if body.has_point(point) or _bubble_box(seat, items).grow(2.0).has_point(point):
 			return seat
 	return -1
@@ -195,7 +205,16 @@ func _draw_ground() -> void:
 
 
 func _draw_stall() -> void:
-	_box(Vector2(1.4, -0.3), Vector2(6.6, 0.0), 66, STALL_PAINT.lightened(0.1), STALL_PAINT, STALL_PAINT.darkened(0.2))
+	# The stall starts faded; fresh paint makes it bright.
+	var painted := _service.state.has_upgrade("paint")
+	var paint := STALL_PAINT if painted else STALL_PAINT.lerp(Color("8a8f94"), 0.55)
+	_box(Vector2(1.4, -0.3), Vector2(6.6, 0.0), 66, paint.lightened(0.1), paint, paint.darkened(0.2))
+	if not painted:
+		for stain in [Vector2(2.3, 0.0), Vector2(4.8, 0.0)]:
+			var at := _iso(stain, 18)
+			draw_rect(Rect2(at, Vector2(9, 5)), Color(0.3, 0.25, 0.2, 0.25))
+	if _service.state.has_upgrade("radio"):
+		_draw_radio_and_posters()
 	# Shelf with snack packets and jars on the back wall.
 	var shelf_l := _iso(Vector2(1.6, 0.0), 34)
 	var shelf_r := _iso(Vector2(6.4, 0.0), 34)
@@ -212,6 +231,12 @@ func _draw_stall() -> void:
 	# Pillars, counter, and the roof.
 	for corner in [Vector2(1.4, 0.0), Vector2(6.6, 0.0)]:
 		_box(corner + Vector2(0, 0.0), corner + Vector2(0.15, 0.15), 66, WOOD, WOOD.darkened(0.2), WOOD.darkened(0.35))
+	if _service.state.has_upgrade("counter"):
+		_box(Vector2(0.2, 1.2), Vector2(1.4, 2.0), 20, WOOD.lightened(0.15), WOOD, WOOD.darkened(0.25))
+		var stove := _iso(Vector2(0.8, 1.6), 20)
+		draw_rect(Rect2(stove + Vector2(-8, -4), Vector2(16, 4)), Color("2b2b2b"))
+		draw_rect(Rect2(stove + Vector2(-7, -14), Vector2(14, 10)), Color("6a6f75"))
+		draw_rect(Rect2(stove + Vector2(-8, -15), Vector2(16, 2)), Color("9aa3ad"))
 	_box(Vector2(1.4, 1.2), Vector2(6.6, 2.0), 20, WOOD.lightened(0.15), WOOD, WOOD.darkened(0.25))
 	_quad_up(Vector2(1.4, 1.95), Vector2(6.6, 2.0), 14, 6, Color("e8c547"))
 	for corner in [Vector2(1.4, 1.9), Vector2(6.45, 1.9)]:
@@ -229,8 +254,15 @@ func _draw_stall() -> void:
 	draw_line(hook, hook + Vector2(0, 4), Color("ded4bf"), 1.0)
 	for i in 5:
 		draw_rect(Rect2(hook + Vector2(-5 + i * 2, 4 + (i % 2) * 2), Vector2(2, 8)), Color("e8d23c"))
-	# Sign board on top of the back wall.
+	if _service.state.has_upgrade("plants"):
+		_draw_plants_and_lights(roof)
+	# Sign board on top of the back wall: cardboard at first, a proper board once painted.
 	var sign_at := _iso(Vector2(4.0, -0.15), 80)
+	if not painted:
+		draw_rect(Rect2(sign_at + Vector2(-20, -9), Vector2(40, 12)), Color("b08a5a"))
+		draw_rect(Rect2(sign_at + Vector2(-20, -9), Vector2(40, 12)), Color("7a5a3a"), false, 1.0)
+		_text(sign_at + Vector2(0, 0), "TEA", Color("3a2a1a"), HORIZONTAL_ALIGNMENT_CENTER)
+		return
 	if _service.state.has_upgrade("sign"):
 		var lit := _service.clock.minutes() > 1050.0
 		for i in 12:
@@ -243,6 +275,46 @@ func _draw_stall() -> void:
 	draw_rect(Rect2(sign_at + Vector2(-34, -10), Vector2(68, 13)), Color("e8c547"))
 	draw_rect(Rect2(sign_at + Vector2(-34, -10), Vector2(68, 13)), Color("b5321f"), false, 1.0)
 	_text(sign_at + Vector2(0, 0), "TEA KADAI", Color("b5321f"), HORIZONTAL_ALIGNMENT_CENTER)
+
+
+func _draw_plants_and_lights(roof: Array) -> void:
+	for spot in [Vector2(1.0, 2.3), Vector2(7.0, 2.1)]:
+		var pot := _iso(spot)
+		draw_rect(Rect2(pot + Vector2(-5, -8), Vector2(10, 8)), Color("b5582f"))
+		draw_rect(Rect2(pot + Vector2(-6, -9), Vector2(12, 2)), Color("c96a3a"))
+		for leaf in [Vector2(-4, -14), Vector2(0, -18), Vector2(4, -14), Vector2(-2, -12), Vector2(2, -12)]:
+			draw_circle(pot + leaf, 3.5, Color("4a9a3a"))
+	var lit := _service.clock.minutes() > 1050.0
+	var colors := [Color("ff6b6b"), Color("ffd93d"), Color("6bcBff"), Color("8aff8a")]
+	for i in 14:
+		var at: Vector2 = roof[3].lerp(roof[2], (i + 0.5) / 14.0) + Vector2(0, 3 + sin(i * 1.3) * 1.5)
+		var color: Color = colors[i % colors.size()]
+		var on := lit and (int(_time * 3.0) + i) % 4 != 0
+		draw_rect(Rect2(at, Vector2(2, 2)), color if on else color.darkened(0.5))
+		if on:
+			draw_circle(at + Vector2(1, 1), 4.0, Color(color, 0.18))
+
+
+func _draw_radio_and_posters() -> void:
+	var poster := _iso(Vector2(2.0, 0.0), 60)
+	draw_rect(Rect2(poster + Vector2(-6, 0), Vector2(12, 16)), Color("2f6db5"))
+	draw_rect(Rect2(poster + Vector2(-5, 2), Vector2(10, 6)), Color("e8c547"))
+	draw_rect(Rect2(poster + Vector2(-5, 10), Vector2(10, 2)), Color("f3e3c3"))
+	var photo := _iso(Vector2(3.0, 0.0), 58)
+	draw_rect(Rect2(photo + Vector2(-5, 0), Vector2(10, 9)), Color("6b4a2e"))
+	draw_rect(Rect2(photo + Vector2(-4, 1), Vector2(8, 7)), Color("d9c9a5"))
+	draw_rect(Rect2(photo + Vector2(-1, 3), Vector2(2, 4)), Color("6b4a2e"))
+	var radio := _iso(Vector2(5.4, 0.0), 44)
+	draw_rect(Rect2(radio + Vector2(-8, -8), Vector2(16, 9)), Color("8a3a2a"))
+	draw_circle(radio + Vector2(-3, -4), 2.5, Color("3a2a1a"))
+	draw_rect(Rect2(radio + Vector2(2, -6), Vector2(4, 1)), Color("e8c547"))
+	draw_line(radio + Vector2(5, -8), radio + Vector2(9, -16), Color("9aa3ad"), 1.0)
+	for i in 2:
+		var rise := fmod(_time * 10.0 + i * 9.0, 18.0)
+		var note := radio + Vector2(-2 + i * 7 + sin(_time * 2.0 + i) * 3.0, -12 - rise)
+		var alpha := 1.0 - rise / 18.0
+		draw_rect(Rect2(note, Vector2(2, 2)), Color(Style.TEXT, alpha))
+		draw_line(note + Vector2(2, 0), note + Vector2(2, -4), Color(Style.TEXT, alpha), 1.0)
 
 
 func _draw_counter_things() -> void:
@@ -288,29 +360,42 @@ func _draw_counter_things() -> void:
 
 
 func draw_person(type_id: String, tile: Vector2, walking: bool, alpha: float) -> void:
-	draw_figure(Service.kind_of(type_id), _iso(tile).round(), walking, alpha)
+	draw_figure(Service.kind_of(type_id), _iso(tile).round(), walking, alpha, CUSTOMER_SCALE)
 
 
 ## A little person standing on "feet". "look" needs shirt, legs and hair
 ## colours; a "bag" colour adds a backpack.
 func draw_figure(look: Dictionary, feet: Vector2, walking: bool, alpha: float, scale: float = 1.0) -> void:
-	var kind := look
 	draw_set_transform(feet, 0.0, Vector2(scale, scale))
-	feet = Vector2.ZERO
-	var bob := absf(sin(_time * 12.0)) * 1.5 if walking else 0.0
-	var shirt: Color = kind["shirt"]
-	var legs: Color = kind["legs"]
-	var hair: Color = kind["hair"]
-	draw_rect(Rect2(feet + Vector2(-5, -2), Vector2(10, 2)), Color(0, 0, 0, 0.2 * alpha))
-	draw_rect(Rect2(feet + Vector2(-3, -9 - bob), Vector2(6, 9)), Color(legs, alpha))
-	draw_rect(Rect2(feet + Vector2(-4, -19 - bob), Vector2(8, 11)), Color(shirt, alpha))
-	draw_rect(Rect2(feet + Vector2(-5, -18 - bob), Vector2(1, 7)), Color(Style.SKIN, alpha))
-	draw_rect(Rect2(feet + Vector2(4, -18 - bob), Vector2(1, 7)), Color(Style.SKIN, alpha))
-	draw_rect(Rect2(feet + Vector2(-3, -26 - bob), Vector2(6, 7)), Color(Style.SKIN, alpha))
-	draw_rect(Rect2(feet + Vector2(-3, -27 - bob), Vector2(6, 5)), Color(hair, alpha))
-	if kind.has("bag"):
-		draw_rect(Rect2(feet + Vector2(-5, -18 - bob), Vector2(10, 7)), Color(kind["bag"], alpha))
-		draw_rect(Rect2(feet + Vector2(-3, -25 - bob), Vector2(6, 1)), Color(0.1, 0.1, 0.1, alpha))
+	# Two-frame walk: legs swap and the body bobs on the second frame.
+	var step := (int(_time * 8.0) % 2) if walking else 0
+	var bob := float(step)
+	var shirt: Color = look["shirt"]
+	var legs: Color = look["legs"]
+	var skin: Color = look.get("skin", Style.SKIN)
+	draw_rect(Rect2(-5, -1, 10, 2), Color(0, 0, 0, 0.2 * alpha))
+	if look.has("saree"):
+		var saree: Color = look["saree"]
+		draw_colored_polygon(PackedVector2Array([Vector2(-4, -12 - bob), Vector2(4, -12 - bob),
+			Vector2(5, 0), Vector2(-5, 0)]), Color(legs, alpha))
+		draw_rect(Rect2(-5, -2, 10, 1), Color(saree, alpha))
+	else:
+		draw_rect(Rect2(-3, -11 - bob, 2, 11 - (2 if step == 1 else 0) + bob), Color(legs, alpha))
+		draw_rect(Rect2(1, -11 - bob, 2, 11 - (2 if walking and step == 0 else 0) + bob), Color(legs, alpha))
+	draw_rect(Rect2(-4, -22 - bob, 8, 12), Color(shirt, alpha))
+	draw_rect(Rect2(-5, -21 - bob, 1, 8), Color(skin, alpha))
+	draw_rect(Rect2(4, -21 - bob, 1, 8), Color(skin, alpha))
+	if look.has("saree"):
+		draw_colored_polygon(PackedVector2Array([Vector2(1, -22 - bob), Vector2(4, -22 - bob),
+			Vector2(-4, -12 - bob), Vector2(-4, -15 - bob)]), Color(look["saree"], alpha))
+	if look.get("tag", false):
+		draw_line(Vector2(-2, -22 - bob), Vector2(0, -17 - bob), Color(0.2, 0.3, 0.6, alpha), 1.0)
+		draw_rect(Rect2(-1, -17 - bob, 3, 3), Color(1, 1, 1, alpha))
+	if look.has("bag"):
+		draw_line(Vector2(-3, -22 - bob), Vector2(3, -13 - bob), Color(look["bag"].darkened(0.3), alpha), 1.0)
+		draw_rect(Rect2(4, -20 - bob, 3, 7), Color(look["bag"], alpha))
+	draw_set_transform(feet + Vector2(0, (-22 - bob) * scale), 0.0, Vector2(scale, scale))
+	Style.draw_head(self, look, alpha)
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -327,7 +412,7 @@ func _draw_bubble(seat: int, customer: Dictionary) -> void:
 	var feet := _iso(SEAT_TILES[seat]).round()
 	var ready := _service.can_fill(seat)
 	var grumpy: bool = customer["grumpy"]
-	draw_line(Vector2(feet.x, box.end.y), feet + Vector2(0, -30), Style.TEXT, 1.0)
+	draw_line(Vector2(feet.x, box.end.y), feet + Vector2(0, -44), Style.TEXT, 1.0)
 	draw_rect(box, Style.TEXT)
 	if ready:
 		draw_rect(box.grow(1.0), Style.GOOD, false, 2.0)
@@ -384,7 +469,7 @@ func _bubble_box(seat: int, item_count: int) -> Rect2:
 	var width := 18.0 + item_count * 20.0
 	var lift := 42.0 if seat % 2 == 1 else 0.0
 	var feet := _iso(SEAT_TILES[seat]).round()
-	return Rect2(feet + Vector2(-width / 2.0, -60.0 - lift), Vector2(width, 26))
+	return Rect2(feet + Vector2(-width / 2.0, -74.0 - lift), Vector2(width, 26))
 
 
 func _draw_tree(tile: Vector2) -> void:

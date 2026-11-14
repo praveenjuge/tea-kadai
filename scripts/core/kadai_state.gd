@@ -17,6 +17,10 @@ var recipes: Array[String] = []
 ## Regular id -> {"friendship": int, "visits": int, "flags": Dictionary}.
 var regulars := {}
 var best_streak := 0
+## Reputation points. The kadai level comes from these.
+var reputation := 0
+## This week's running totals for the goals, and which goals are done.
+var week := {}
 
 
 func _init() -> void:
@@ -25,19 +29,26 @@ func _init() -> void:
 	for item in Catalog.MENU:
 		prices[item] = Catalog.MENU[item]["price"]
 	_reset_today()
+	_reset_week()
 
 
 func next_day() -> void:
 	day += 1
 	_reset_today()
+	if (day - 1) % 7 == 0:
+		_reset_week()
+
+
+func _reset_week() -> void:
+	week = {"served": 0, "perfect": 0, "revenue": 0, "done": []}
 
 
 func _reset_today() -> void:
 	today = {
 		"revenue": 0, "tips": 0, "spent": 0, "upgrades": 0,
 		"served": 0, "waited_long": 0, "out_of_stock": 0, "too_costly": 0, "no_seat": 0, "wasted": 0,
-		"perfect": 0, "best_streak": 0,
-		"sold": {}, "bought": {}, "met": [],
+		"perfect": 0, "best_streak": 0, "points": 0,
+		"sold": {}, "bought": {}, "met": [], "level_ups": [], "goals_done": [],
 	}
 
 
@@ -47,6 +58,7 @@ func to_dict() -> Dictionary:
 	return {
 		"version": 1, "day": day, "money": money, "stock": stock, "prices": prices,
 		"upgrades": upgrades, "recipes": recipes, "regulars": regulars, "best_streak": best_streak,
+		"reputation": reputation, "week": week,
 	}
 
 
@@ -72,18 +84,74 @@ static func from_dict(data: Dictionary) -> KadaiState:
 	for id in saved_regulars:
 		state.regulars[id] = saved_regulars[id]
 	state.best_streak = int(data.get("best_streak", 0))
+	state.reputation = maxi(0, int(data.get("reputation", 0)))
+	var saved_week: Dictionary = data.get("week", {})
+	for key in ["served", "perfect", "revenue"]:
+		state.week[key] = int(saved_week.get(key, 0))
+	for id in saved_week.get("done", []):
+		state.week["done"].append(str(id))
 	return state
 
 
 # --- Menu, upgrades and regulars ------------------------------------------
 
-## Menu items on sale today: the starting menu plus anything learned.
+## Menu items on sale: the starting menu, plus anything unlocked by the
+## kadai level or learned from a regular.
 func menu() -> Array[String]:
 	var items: Array[String] = []
 	for item in Catalog.MENU_ORDER:
-		if not Catalog.MENU[item].get("learned", false) or recipes.has(item):
-			items.append(item)
+		var info: Dictionary = Catalog.MENU[item]
+		if info.get("learned", false) and not recipes.has(item):
+			continue
+		if int(info.get("level", 0)) > level():
+			continue
+		items.append(item)
 	return items
+
+
+func level() -> int:
+	return Catalog.level_for(reputation)
+
+
+## Progress through the current level, from 0 to 1. 1 at the top level.
+func level_progress() -> float:
+	var current := level()
+	if current >= Catalog.LEVEL_POINTS.size():
+		return 1.0
+	var low := Catalog.LEVEL_POINTS[current - 1]
+	var high := Catalog.LEVEL_POINTS[current]
+	return float(reputation - low) / float(high - low)
+
+
+## Adds reputation, noting any new level reached today.
+func add_points(amount: int) -> void:
+	var before := level()
+	reputation += amount
+	today["points"] += amount
+	for reached in range(before + 1, level() + 1):
+		today["level_ups"].append(reached)
+
+
+## This week's goals with progress: [{"id", "text", "target", "value", "done"}].
+func week_goals() -> Array[Dictionary]:
+	var goals := Catalog.goals_for_week(Catalog.week_of(day))
+	for goal in goals:
+		goal["value"] = int(week.get(goal["id"], 0))
+		goal["done"] = week["done"].has(goal["id"])
+	return goals
+
+
+## Pays out any goal reached since the last check. Returns the goals just done.
+func claim_goals() -> Array[Dictionary]:
+	var claimed: Array[Dictionary] = []
+	for goal in week_goals():
+		if not goal["done"] and int(goal["value"]) >= int(goal["target"]):
+			week["done"].append(goal["id"])
+			money += Catalog.GOAL_REWARD
+			add_points(Catalog.POINTS_GOAL)
+			today["goals_done"].append(goal["text"])
+			claimed.append(goal)
+	return claimed
 
 
 func has_upgrade(id: String) -> bool:
@@ -189,6 +257,7 @@ func record_sale(item: String) -> int:
 	var price := int(prices[item])
 	money += price
 	today["revenue"] += price
+	week["revenue"] = int(week["revenue"]) + price
 	today["sold"][item] = int(today["sold"].get(item, 0)) + 1
 	return price
 

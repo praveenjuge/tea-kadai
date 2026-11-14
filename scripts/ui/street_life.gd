@@ -103,9 +103,18 @@ func _spawn_walker(raining: bool) -> void:
 		"shirt": SHIRTS[_rng.randi() % SHIRTS.size()],
 		"legs": [Color("2d3a5a"), Color("4a4a4a"), Color("f4f1e8"), Color("6b5a3a")][_rng.randi() % 4],
 		"hair": [Color("1e1612"), Color("2b1d14"), Color("c9c4bb")][_rng.randi() % 3],
+		"skin": [Color("6e4329"), Color("7a4a2e"), Color("8d5a3b"), Color("9a6440")][_rng.randi() % 4],
+		"hair_style": ["short", "short", "bun", "long", "bald"][_rng.randi() % 5],
+		"mustache": _rng.randf() < 0.3,
 	}
+	if look["hair_style"] in ["bun", "long"]:
+		look["mustache"] = false
+		if _rng.randf() < 0.5:
+			look["saree"] = SHIRTS[_rng.randi() % SHIRTS.size()]
+			look["legs"] = look["saree"].darkened(0.2)
 	if kind == "kids":
-		look = {"shirt": Color("eef0f2"), "legs": Color("2f4f8f"), "hair": Color("1e1612"), "bag": Color("c0392b")}
+		look = {"shirt": Color("eef0f2"), "legs": Color("2f4f8f"), "hair": Color("1e1612"), "bag": Color("c0392b"),
+			"skin": Color("8d5a3b")}
 	_walkers.append({
 		"kind": kind,
 		"x": LEFT_END if direction > 0.0 else RIGHT_END,
