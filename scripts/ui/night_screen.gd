@@ -268,7 +268,7 @@ func _regular_row(id: String, line: String) -> Control:
 
 func _save_card() -> void:
 	var path := await ShareCard.save_png(self, ShareCard.for_day(_state), "Tea Kadai - Day %d.png" % _state.day)
-	_saved.text = "Saved to Desktop: " + path.get_file()
+	_saved.text = "Saved to %s: %s" % [ShareCard.folder_name(), path.get_file()]
 
 
 func refresh() -> void:

@@ -188,6 +188,9 @@ func _on_title_choice(choice: String) -> void:
 			open_overlay(MenuOverlay.how_to_play())
 		"credits":
 			open_overlay(MenuOverlay.credits())
+		"feedback":
+			var saved := SaveGame.load_state()
+			MenuOverlay.send_feedback(saved.day if saved != null else 0)
 		"quit":
 			_quit()
 

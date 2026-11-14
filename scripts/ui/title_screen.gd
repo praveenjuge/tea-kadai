@@ -2,7 +2,7 @@ class_name TitleScreen
 extends Control
 ## The title: the kadai's street at dawn, alive behind the logo and menu.
 
-## "continue", "new", "help", "settings", "credits" or "quit".
+## "continue", "new", "help", "settings", "credits", "feedback" or "quit".
 signal chosen(choice: String)
 
 var _saved: KadaiState
@@ -74,6 +74,7 @@ func _ready() -> void:
 	column.add_child(_menu_button("How to play", "help", true))
 	column.add_child(_menu_button("Settings", "settings", true))
 	column.add_child(_menu_button("Credits", "credits", true))
+	column.add_child(_menu_button("Send feedback", "feedback", true))
 	column.add_child(_menu_button("Quit", "quit", true))
 
 	if _saved != null:

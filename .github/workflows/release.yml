@@ -10,6 +10,9 @@ name: Build and release
 # the Mac app is signed and notarized with rcodesign, and the Windows exe is
 # signed by SignPath after a manual approval there. Without the secrets, the
 # builds ship unsigned.
+#
+# Releases also go to itch.io once BUTLER_API_KEY and the ITCH_GAME variable
+# are set (docs/ITCH.md).
 
 on:
   push:
@@ -41,6 +44,7 @@ jobs:
       RELEASING: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       SIGN_MAC: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.MACOS_CERTIFICATE_P12 != '' }}
       SIGN_WINDOWS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.SIGNPATH_API_TOKEN != '' }}
+      ITCH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.BUTLER_API_KEY != '' && vars.ITCH_GAME != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -235,6 +239,26 @@ jobs:
             build/TeaKadai-macOS.zip build/TeaKadai-Windows.exe build/TeaKadai-Linux.tar.gz \
             build/TeaKadai.pck build/version.json
           gh release edit "$tag" --draft=false --latest
+
+      - name: Upload to itch.io
+        if: env.ITCH == 'true'
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_GAME: ${{ vars.ITCH_GAME }}
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          curl -fsSL --retry 3 -o /tmp/butler.zip "https://broth.itch.zone/butler/linux-amd64/15.32.0/archive/default"
+          echo "2335971394ef6596f95ded0833e85ee28755e13761716ef4c91d6b11f69162f5  /tmp/butler.zip" | sha256sum -c -
+          unzip -q /tmp/butler.zip -d /tmp/butler
+          chmod +x /tmp/butler/butler
+          # One folder per platform, so the itch app installs and updates each.
+          mkdir -p build/itch/mac build/itch/windows build/itch/linux
+          unzip -q build/TeaKadai-macOS.zip -d build/itch/mac
+          cp build/TeaKadai-Windows.exe build/itch/windows/
+          cp build/TeaKadai-Linux.x86_64 build/itch/linux/
+          for channel in mac windows linux; do
+            /tmp/butler/butler push "build/itch/$channel" "$ITCH_GAME:$channel" --userversion "$NEXT"
+          done
 
       - name: Keep only the newest releases
         if: env.RELEASING == 'true'

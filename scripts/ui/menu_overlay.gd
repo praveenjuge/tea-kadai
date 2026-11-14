@@ -160,6 +160,15 @@ static func glossary() -> MenuOverlay:
 	return overlay
 
 
+## Opens a new GitHub issue in the browser, filled in with the game version,
+## the platform and the day. Nothing personal goes in it.
+static func send_feedback(day: int) -> void:
+	var updater: Node = Engine.get_main_loop().root.get_node_or_null("/root/Updater")
+	var version: String = updater.running_version() if updater != null else str(ProjectSettings.get_setting("application/config/version"))
+	var body := "**What happened, or what would you like?**\n\n\n\n---\nTea Kadai v%s · %s · day %d" % [version, OS.get_name(), day]
+	OS.shell_open("https://github.com/praveenjuge/tea-kadai/issues/new?title=%s&body=%s" % ["Feedback".uri_encode(), body.uri_encode()])
+
+
 static func credits() -> MenuOverlay:
 	var overlay := MenuOverlay.new("Credits")
 	for line in [
@@ -226,7 +235,7 @@ static func week_done(state: KadaiState, host: Node) -> MenuOverlay:
 	var note := Style.label("", Style.GOOD)
 	overlay.add(note)
 	overlay.add_buttons([
-		Style.button("Save card to Desktop", func() -> void:
+		Style.button("Save card to " + ShareCard.folder_name(), func() -> void:
 			var path := await ShareCard.save_png(host, data, "Tea Kadai - Week %d.png" % week)
 			note.text = "Saved: " + path.get_file(), true),
 		Style.button("Keep going", overlay.close),
