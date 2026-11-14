@@ -33,7 +33,7 @@ The next push to `main` makes a signed, notarized Mac release. If notarization f
 [SignPath Foundation](https://signpath.org/) signs open source projects for free. The certificate is theirs, so Windows shows "SignPath Foundation" as the publisher. Their rules are on [signpath.org/terms](https://signpath.org/terms). The ones that matter here:
 
 - Two-factor login on GitHub and SignPath for everyone on the project.
-- A code signing policy page linked from the download page. That's [tea-kadai.praveenjuge.com/code-signing](https://tea-kadai.praveenjuge.com/code-signing), linked in the site's footer. Once signing is live, remove the "Signing starts once…" line there.
+- A code signing policy page linked from the download page, with their attribution line ("Free code signing provided by SignPath.io, certificate by SignPath Foundation"), the team roles, and a privacy note. The site doesn't have one right now (it was taken down to keep the site simple), so add it back to `website/public/` before applying. Git history has the old `code-signing.html` to start from.
 - Every release is approved by hand in SignPath before it's signed.
 - The exe carries the product name and version. The workflow stamps both (`Tea Kadai`, and the release version).
 
