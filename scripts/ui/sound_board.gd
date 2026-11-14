@@ -6,13 +6,15 @@ extends Node
 ## assets/sounds, so real recordings can replace them by name.
 
 const DIR := "res://assets/sounds/"
-## Loudness of each sound in dB.
+## Loudness of each sound in dB, balanced by measured loudness: sounds that
+## play often (coins, filling a glass) sit lower, rare rewards a bit higher,
+## and the street and music stay underneath.
 const VOLUME := {
-	"fill": -10.0, "perfect": -8.0, "good": -10.0, "flat": -12.0, "spill": -8.0,
-	"golden": -10.0, "lift": -10.0, "burnt": -10.0, "coin": -12.0, "arrive": -16.0,
-	"grumble": -14.0, "crow": -20.0, "horn": -22.0, "bell": -22.0,
-	"pour_loop": -12.0, "sizzle_loop": -21.0, "street_loop": -16.0, "rain_loop": -14.0,
-	"music_day": -18.0, "music_night": -18.0, "rush_loop": -20.0,
+	"fill": -13.0, "perfect": -8.0, "good": -12.0, "flat": -13.0, "spill": -8.0,
+	"golden": -10.0, "lift": -10.0, "burnt": -17.0, "coin": -19.0, "arrive": -16.0,
+	"grumble": -18.0, "crow": -20.0, "horn": -22.0, "bell": -22.0,
+	"pour_loop": -12.0, "sizzle_loop": -21.0, "street_loop": -19.0, "rain_loop": -16.0,
+	"music_day": -16.0, "music_night": -19.0, "rush_loop": -20.0,
 }
 ## How fast each loop fades in and out, in full volume per second.
 const LOOP_FADE := {
