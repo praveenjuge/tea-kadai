@@ -255,6 +255,13 @@ Decided: free everywhere; itch.io and the Mac App Store as the stores (no Steam 
 - **Mac App Store:** a sandboxed preset (share cards go to Pictures, no network) built locally by `tools/build_app_store.sh`.
 - **Trailer:** recorded at 1080p with the movie writer, on the website and linked from the README.
 
+
+## Round 11: in the stores (2026-11-14)
+
+- **itch.io:** [praveenjuge.itch.io/tea-kadai](https://praveenjuge.itch.io/tea-kadai) is public, with a cover, screenshots and theme, and every release uploads there from CI.
+- **Mac App Store:** listed as "Tea Kadai: Chennai Chai" ("Tea Kadai" was taken), bundle ID `teakadai.praveenjuge.game`. 0.1.21 went to review by hand. From now on every release builds on a Mac runner, uploads, and replaces whatever version is waiting for review, so Apple always reviews the newest one. Approved versions go live on their own.
+- Considered and skipped for now: Homebrew, Winget, Scoop, Flathub, Steam.
+
 ## Next up
 
 In order:
