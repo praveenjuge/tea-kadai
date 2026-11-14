@@ -204,6 +204,16 @@ Asked for: no black bars in fullscreen, and graphics and UI that look like a rea
 - **Street:** a sky that changes from dawn to starry night, a row of colourful shop fronts and houses with lit windows at night, tiled pavement with cracks, a colourful kolam, a drain, a proper auto rickshaw, a bus with windows, scooters, street lamps with glow, and shadows that follow the sun.
 - **Polish:** outlined pixel-art boxes, flames under the pot and kadai, heat shimmer, a newspaper picture, buttons that lift and squash, panels that pop in, money that rolls up, and customers who wave, slump with a storm cloud when grumpy, and hop when they leave happy.
 
+## Round 6: ready to share (2026-11-14)
+
+- Fullscreen fills any screen with no bars (smooth scaling).
+- The kadai is a real shop in the building row: open front with shelves inside, counter, awning, sign, a flat upstairs, and a table with plastic chairs outside.
+- Murugan, an auto driver saving for his own auto, is the second regular in week 2.
+- Each week ends with a "Week N" card (save it to the Desktop); the night screen can save a day card too. After week 2 the game thanks friends for playing and keeps going.
+- Balance tuned from a two-week bot run; no stuck days (customers eventually give up on orders you can't make, and Amma sends money if you're broke and out of tea).
+- Sound volumes evened out by measured loudness.
+- A Mac app (universal, ad-hoc signed) for friends, with first-launch instructions in the README.
+
 ## Next up
 
 In order:

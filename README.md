@@ -20,6 +20,16 @@ godot --path . -- --service
 
 Or open the folder in the Godot editor and press Play.
 
+## Share it with friends
+
+Build the Mac app (needs Godot's 4.7.2 export templates installed once):
+
+```bash
+godot --headless --path . --export-release "macOS" "build/Tea Kadai.zip"
+```
+
+Send `build/Tea Kadai.zip`. It works on Intel and Apple Silicon Macs. The app isn't notarized, so the first time a friend opens it macOS will block it. They should open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to Tea Kadai. After that it opens normally.
+
 ## How a day works
 
 1. **Title:** continue your saved week or start a new kadai (with a short opening story). The game saves at the start of every morning.
